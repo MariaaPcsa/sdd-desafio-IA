@@ -1,49 +1,48 @@
 # CLAUDE.md
 
-> Este arquivo é lido pelo Claude Code no início de toda sessão. É onde moram as
-> convenções que você não quer repetir em todo prompt.
-> Substitua os `<...>` e apague o que não usar. Mantenha curto — CLAUDE.md longo
-> é CLAUDE.md ignorado.
+Este arquivo define as convenções operacionais e comandos do projeto para manter a conformidade rigorosa com a Rubrica de Avaliação do Desafio SDD.
 
 ## O projeto
 
-Motor de cálculo de reembolso de despesas corporativas. CLI que lê um JSON de
-despesas e emite um JSON com o valor reembolsável e a justificativa de cada item.
+Motor de cálculo de reembolso de despesas corporativas. Interface CLI que lê um lote de despesas em formato JSON e gera um relatório JSON detalhado com o valor aprovado e justificativas completas para cada item.
 
 ## Fonte da verdade
 
-`specs/001-motor-reembolso/spec.md` define **o que** o sistema faz.
-`specs/001-motor-reembolso/plan.md` define **como**.
-`specs/001-motor-reembolso/tasks.md` define **em que ordem**.
+- `specs/001-motor-reembolso/spec.md` define **o que** o sistema faz.
+- `specs/001-motor-reembolso/plan.md` define **como**.
+- `specs/001-motor-reembolso/tasks.md` define **em que ordem**.
 
-Quando o código e a spec discordarem, a spec está certa e o código é o bug —
-a menos que a spec esteja errada, e nesse caso corrigimos a spec primeiro e
-registramos em `DECISIONS.md`.
+Quando o código e a spec discordarem, a spec está certa e o código é o bug — a menos que a spec precise ser ajustada, o que exige registrar em `DECISIONS.md` antes de qualquer alteração de código.
 
-**Antes de implementar qualquer coisa, leia a task correspondente em `tasks.md`.**
-Se o que eu pedi não está coberto por nenhuma task, me avise em vez de implementar.
+**Antes de implementar qualquer coisa, consulte a task em `tasks.md`.** Toda implementação deve estar associada a uma task previamente aprovada.
 
 ## Regras de trabalho
 
-- Toda regra de negócio vive na spec, não no chat e não em comentário de código.
-- Se eu te explicar uma regra que não está na spec, **pare e me diga isso** antes
-  de escrever código. Isso é um bug de spec.
-- Todo commit referencia uma task: `feat(T-003): <descrição>`.
-  Mudanças de documentação: `docs(spec):`, `docs(plan):`, `docs(tasks):`.
-- Nenhuma regra de negócio entra sem teste.
+- Toda regra de negócio vive exclusivamente na `spec.md`, nunca apenas no chat ou em comentários de código.
+- Qualquer regra explicada fora da spec é considerada um bug de especificação.
+- Todo commit de código ou teste deve referenciar sua respectiva task:
+  - `feat(T-003): <descrição>`
+  - `test(T-003): <descrição>`
+- Commits de documentação e planejamento utilizam:
+  - `docs(spec):`, `docs(plan):`, `docs(tasks):`, `docs(sessions):`
+- Nenhuma regra de negócio é entregue sem teste automatizado.
 
 ## Stack e comandos
 
-- Linguagem: `<...>`
-- Rodar: `<comando>`
-- Testes: `<comando>`
-- Lint/format: `<comando>`
+- **Linguagem / Runtime:** Node.js 22.14.0 + TypeScript
+- **Execução:** `npm start -- calcular --input <caminho> --output <caminho>`
+- **Testes:** `npm test`
+- **Validação de tipos:** `npm run typecheck`
 
 ## Convenções de código
 
-- `<nomenclatura, estrutura de pastas, tratamento de erro, o que for relevante>`
-- Valores monetários: `<como são representados — decimal, centavos em inteiro, etc.>`
+- **Estrutura de pastas:** `src/` para código de domínio e CLI; `tests/` para testes automatizados; `specs/` para documentação viva de SDD.
+- **Valores monetários:** Representação interna estritamente em **números inteiros de centavos** (ex: `R$ 60,00` = `6000`). Truncamento estrito em 2 casas decimais na ingestão de dados.
+- **Tratamento de erros:** Mensagens amigáveis no `stderr` com códigos de saída semanticos (0 para sucesso, 1 para erro de validação/argumento).
 
 ## Fora de escopo
 
-- `<o que este projeto explicitamente não faz — evita que o agente invente feature>`
+- Não realiza OCR ou leitura de comprovantes físicos.
+- Não efetua chamadas a APIs bancárias ou gateways de pagamento.
+- Não converte moedas estrangeiras (opera exclusivamente em BRL).
+- Não gerencia autenticação ou controle de permissões.
