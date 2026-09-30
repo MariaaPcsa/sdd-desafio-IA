@@ -76,10 +76,10 @@
 
 ## Fase 3 — Casos de Borda
 
-- [ ] **T-013** — Implementar bateria de testes para todos os casos de borda da Seção 7 da spec
+- [x] **T-013** — Implementar bateria de testes para todos os casos de borda da Seção 7 da spec
   - **Atende:** spec.md Seção 7 (Casos de Borda)
   - **Aceite:** Bateria de testes em `tests/edge_cases.test.ts` executando com 100% de aprovação.
-  - **Commit:**
+  - **Commit:** `test(T-013)`
 
 ---
 
