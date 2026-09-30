@@ -81,7 +81,7 @@ test('T-006 / RN-009: categoria inválida é recusada; categoria em maiúsculas 
       {
         id: 'd-014',
         data: '2026-07-31',
-        categoria: 'ALIMENTACAO', // em maiúsculas
+        categoria: 'ALIMENTACAO',
         descricao: 'Jantar de encerramento',
         fornecedor: 'Restaurante Tavola',
         valor: 60.0,
@@ -91,17 +91,49 @@ test('T-006 / RN-009: categoria inválida é recusada; categoria em maiúsculas 
   };
 
   const resultado = processarLote(lote);
+  assert.strictEqual(resultado.despesas[0].status, 'RECUSADO');
+  assert.strictEqual(resultado.despesas[0].categoria, 'coworking');
+  assert.strictEqual(resultado.despesas[1].status, 'APROVADO');
+  assert.strictEqual(resultado.despesas[1].categoria, 'alimentacao');
+});
+
+test('T-007 / RN-008: despesa duplicada é recusada integralmente e não consome limite', () => {
+  const lote: LoteEntrada = {
+    colaborador: { id: 'c-0417', nome: 'Marina Volpi', centro_custo: 'CC-ENG-PLATAFORMA' },
+    periodo: { competencia: '2026-07', inicio: '2026-07-01', fim: '2026-07-31' },
+    despesas: [
+      {
+        id: 'd-006',
+        data: '2026-07-09',
+        categoria: 'alimentacao',
+        descricao: 'Almoco',
+        fornecedor: 'Bistro Central',
+        valor: 54.9,
+        tem_nota_fiscal: true,
+      },
+      {
+        id: 'd-007',
+        data: '2026-07-09',
+        categoria: 'alimentacao',
+        descricao: 'Almoco',
+        fornecedor: 'Bistro Central',
+        valor: 54.9,
+        tem_nota_fiscal: true,
+      },
+    ],
+  };
+
+  const resultado = processarLote(lote);
   assert.strictEqual(resultado.despesas.length, 2);
 
-  // d-005: coworking é recusada com R$ 0,00
-  const itemCoworking = resultado.despesas[0];
-  assert.strictEqual(itemCoworking.status, 'RECUSADO');
-  assert.strictEqual(itemCoworking.valor_reembolsado, 0.0);
-  assert.strictEqual(itemCoworking.categoria, 'coworking');
+  // d-006: 1ª ocorrência aprovada
+  assert.strictEqual(resultado.despesas[0].id, 'd-006');
+  assert.strictEqual(resultado.despesas[0].status, 'APROVADO');
+  assert.strictEqual(resultado.despesas[0].valor_reembolsado, 54.9);
 
-  // d-014: ALIMENTACAO é normalizada para alimentacao e aceita
-  const itemAlim = resultado.despesas[1];
-  assert.strictEqual(itemAlim.categoria, 'alimentacao');
-  assert.strictEqual(itemAlim.status, 'APROVADO');
-  assert.strictEqual(itemAlim.valor_reembolsado, 60.0);
+  // d-007: 2ª ocorrência recusada por duplicidade
+  assert.strictEqual(resultado.despesas[1].id, 'd-007');
+  assert.strictEqual(resultado.despesas[1].status, 'RECUSADO');
+  assert.strictEqual(resultado.despesas[1].valor_reembolsado, 0.0);
+  assert.match(resultado.despesas[1].justificativas[0], /duplicada/i);
 });

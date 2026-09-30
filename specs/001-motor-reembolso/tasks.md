@@ -42,10 +42,10 @@
   - **Aceite:** Teste `test('RN-009: categoria inválida é recusada; categoria em maiúsculas é normalizada')` passa.
   - **Commit:** `feat(T-006)`
 
-- [ ] **T-007** — Implementar detecção e tratamento de despesas duplicadas
+- [x] **T-007** — Implementar detecção e tratamento de despesas duplicadas
   - **Atende:** RN-008, AMB-005
   - **Aceite:** Teste `test('RN-008: despesa duplicada é recusada integralmente e não consome limite')` passa.
-  - **Commit:**
+  - **Commit:** `feat(T-007)`
 
 - [ ] **T-008** — Implementar conformidade fiscal e fronteira de nota fiscal (R$ 100,00)
   - **Atende:** RN-005, AMB-002, AMB-003

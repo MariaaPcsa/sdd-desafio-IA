@@ -44,6 +44,8 @@ export function processarLote(
   let itensPendentesAprovacao = 0;
   let itensRecusados = 0;
 
+  const despesasProcessadasSet = new Set<string>();
+
   for (const item of despesas) {
     const justificativas: string[] = [];
     const valorSolicitadoCentavos = toCents(item.valor);
@@ -66,7 +68,17 @@ export function processarLote(
       );
     }
 
-    // Se houve violações impeditivas até aqui (competência ou categoria)
+    // RN-008: Detecção de duplicatas
+    const fingerprintDuplicata = `${item.data}|${categoriaNorm}|${item.fornecedor.trim().toLowerCase()}|${valorSolicitadoCentavos}|${item.descricao.trim().toLowerCase()}`;
+    if (despesasProcessadasSet.has(fingerprintDuplicata)) {
+      justificativas.push(
+        `Despesa duplicada identificada (mesma data, fornecedor, categoria, descrição e valor). Lançamento recusado.`
+      );
+    } else {
+      despesasProcessadasSet.add(fingerprintDuplicata);
+    }
+
+    // Se houve violações impeditivas até aqui (competência, categoria ou duplicata)
     if (justificativas.length > 0) {
       itensRecusados++;
       totalGlosadoCentavos += valorSolicitadoCentavos;
