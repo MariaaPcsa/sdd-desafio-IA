@@ -1,101 +1,120 @@
-# Desafio Prático — Spec Driven Development
+# Motor de Cálculo de Reembolso Corporativo (SDD)
 
-Aula bônus de SDD, fechando a trilha:
-
-`AI Fluency` → `Claude 101` → `Claude Code 101` → `Building with the Claude API` → `Claude Code in Action` → `Módulo SDD` → **Desafio**
-
-**Individual · 2 dias · Claude Code**
+Motor de linha de comando (CLI) determinístico e auditável para cálculo e validação de lotes de reembolso de despesas corporativas, desenvolvido em **Node.js 22 LTS + TypeScript**, seguindo a metodologia **Spec-Driven Development (SDD)**.
 
 ---
 
-## Comece por aqui
+## 🚀 Como Instalar e Executar
 
-1. **[`DESAFIO.md`](DESAFIO.md)** — o enunciado. Leia inteiro antes de escrever qualquer coisa.
-2. **[`RUBRICA.md`](RUBRICA.md)** — como você é avaliado. É pública de propósito; leia antes de começar.
-3. **[`exemplos/despesas-exemplo.json`](exemplos/despesas-exemplo.json)** — a entrada de referência. Não é decoração: percorra item por item antes de escrever a spec.
-4. **[`FAQ.md`](FAQ.md)** — travou? Comece por aqui. **O instrutor está fora durante o desafio**, então o FAQ é o canal de suporte.
+### Pré-requisitos
+- **Node.js**: versão `>= 22.0.0` (suporte a ESM nativo e test runner integrado).
+- **npm**: versão `>= 10.0.0`.
 
----
+### 1. Instalação das Dependências
 
-## Como participar
-
-**1. Faça um fork deste repositório.** Ele precisa ser público, ou você não conseguirá compartilhar depois.
-
-**2. Clone o seu fork e prepare a estrutura de trabalho:**
+Na raiz do repositório, instale as dependências de desenvolvimento:
 
 ```bash
-git clone https://github.com/<seu-usuario>/sdd-desafio.git
-cd sdd-desafio
-cp template/CLAUDE.md .
-cp -r template/specs .
-cp -r template/docs .
-git add -A && git commit -m "chore: estrutura inicial a partir do template"
+npm install
 ```
 
-<details>
-<summary>PowerShell</summary>
+### 2. Execução dos Testes Automatizados
 
-```powershell
-git clone https://github.com/<seu-usuario>/sdd-desafio.git
-cd sdd-desafio
-Copy-Item template\CLAUDE.md .
-Copy-Item template\specs . -Recurse
-Copy-Item template\docs . -Recurse
-git add -A; git commit -m "chore: estrutura inicial a partir do template"
+O projeto utiliza o executor de testes nativo do Node.js (`node:test`), executando 37 testes automatizados cobrindo regras de negócio, casos de borda e cenários ponta a ponta:
+
+```bash
+# Executa a suíte completa de testes (37 testes)
+npm test
+
+# Executa verificação estática de tipos TypeScript
+npm run typecheck
 ```
-</details>
 
-Os arquivos em `template/` são esqueletos com as perguntas que cada documento precisa responder. Deixe a pasta `template/` onde está — ela serve de referência.
+### 3. Execução da CLI (`reembolso calcular`)
 
-**3. Trabalhe no seu fork**, seguindo as três regras do jogo descritas no [`DESAFIO.md`](DESAFIO.md):
+Você pode executar o motor através do script npm ou diretamente via `tsx`:
 
-- Nenhum commit sem task
-- Explicação no chat que não está na spec é bug de spec
-- Interações exportadas (`/export`) e commitadas em `docs/sessions/`
+#### Processamento do Lote de Referência (v3):
+```bash
+npm start -- calcular --input exemplos/despesas-exemplo.json --output resultado.json
+```
 
-**4. No Dia 2, às 10h**, você recebe uma mudança de requisito pelo canal da turma. Ela é obrigatória e vale 20 pontos. Chegue nesse momento com o sistema base funcionando e testado.
+#### Processamento do Cenário do Envelope Lacrado (Política v4 e Câmbio):
+```bash
+npm start -- calcular \
+  --input exemplos/envelope/despesas-envelope.json \
+  --output resultado-envelope.json \
+  --politica exemplos/envelope/politica-v4.json \
+  --cambio exemplos/envelope/cambio.json
+```
 
-> Durante os dois dias o instrutor está de férias e não responde mensagens. Dúvida de processo: [`FAQ.md`](FAQ.md). Dúvida sobre o que a política do RH significa não tem resposta — decidir isso é o exercício.
+#### Processamento de Centro de Custo Desconhecido (Fallback Padrão):
+```bash
+npm start -- calcular \
+  --input exemplos/envelope/despesas-envelope-cc-desconhecido.json \
+  --output resultado-desconhecido.json \
+  --politica exemplos/envelope/politica-v4.json \
+  --cambio exemplos/envelope/cambio.json
+```
 
-**5. Entregue** enviando o link do seu fork no formulário. Prazo: **Dia 2, 18h**.
+#### Exibição de Ajuda da CLI:
+```bash
+npm start -- --help
+```
 
 ---
 
-## O que o seu fork precisa conter ao final
+## 🏛️ Arquitetura e Decisões de Engenharia
 
-```
-seu-fork/
-├── CLAUDE.md                     # convenções do projeto para o agente
-├── README.md                     # como rodar e como testar o SEU projeto
-├── specs/
-│   └── 001-motor-reembolso/
-│       ├── spec.md               # o QUÊ e o PORQUÊ
-│       ├── plan.md               # o COMO
-│       ├── tasks.md              # T-001..T-0NN, com critério de aceite
-│       └── DECISIONS.md          # log de mudanças de spec
-├── src/
-├── tests/
-└── docs/
-    ├── sessions/                 # exports das suas conversas com o Claude
-    └── RELATORIO.md              # o relatório final
-```
-
-Sobre o `README.md`: substitua este arquivo pelo README do **seu** projeto — como rodar, como testar, o que você construiu. Um README que não permite rodar o projeto custa pontos.
+1. **Aritmética Financeira Estrita em Centavos (`src/money.ts`):** Todos os cálculos internos, consolidações e glosas operam estritamente em centavos inteiros (`toCents`/`fromCents`), eliminando erros de arredondamento de ponto flutuante IEEE 754.
+2. **Truncamento a Duas Casas Decimais (`RN-011`):** Conforme exigência contábil, valores com dízimas ou três casas decimais são truncados estritamente na segunda casa (ex: `33.333 -> 33.33`).
+3. **Resolução Dinâmica por Centro de Custo (`src/policy.ts`, `RN-014`):** Suporte à tabela institucional v4 com limites diferenciados por departamento (`CC-COMERCIAL`, `CC-ENG-PLATAFORMA`, `CC-ADM`) e mecanismo de fallback aditivo para departamentos não cadastrados.
+4. **Conversão Cambial com PTAX do Dia Útil Anterior (`src/currency.ts`, `RN-013`):** Conversão automática de despesas internacionais (`USD`, `EUR`) para `BRL`. Despesas em fins de semana e feriados adotam a taxa do último dia útil imediatamente anterior (convenção Banco Central). Moedas sem cotação cadastrada (ex: `GBP`) são recusadas integralmente com R$ 0,00.
+5. **Fila de Aprovação Manual (`RN-015`):** Despesas cujo montante reembolsável ultrapassar R$ 500,00 recebem o status `PENDENTE_APROVACAO` e justificativa explícita de encaminhamento para a gerência.
+6. **Transparência e Auditabilidade Integral (`RN-012`):** Cada despesa avaliada contém a lista completa de justificativas, histórico de conversão cambial e detalhamento das glosas aplicadas.
 
 ---
 
-## Antes de começar, confirme que o `/export` funciona
+## 📁 Estrutura do Repositório
 
-Abra o Claude Code, troque duas mensagens, rode `/export` e confirme que o arquivo foi gerado.
-
-Faça isso **agora**, não no Dia 2. Sem `docs/sessions/`, o critério de relatório vale zero — e já aconteceu de gente que fez tudo certo descobrir no último dia que não tinha registro nenhum do trabalho.
-
-Exporte ao final de **cada** sessão, nomeando `docs/sessions/01-descricao-curta.md`, `02-...`, e assim por diante.
-
----
-
-## O resumo em um parágrafo
-
-Você vai receber uma política de reembolso escrita por um RH, com a redação ruim que uma política de RH real tem. Ela é ambígua em vários pontos, e você não tem acesso a ninguém para tirar dúvida. O trabalho não é implementar — é **especificar**: encontrar cada ambiguidade, decidir explicitamente, justificar e registrar. O produto funcionando vale **10 dos 100 pontos**. Os outros 90 estão na spec, na rastreabilidade `spec → tasks → commits → testes`, na resposta à mudança de requisito do Dia 2 e no relatório.
-
-Isso é deliberado. Um projeto que roda perfeitamente com spec fraca tira nota baixa; um projeto com bug conhecido, spec impecável e trilha limpa tira nota alta.
+```
+.
+├── CLAUDE.md                                    # Convenções e instruções do agente de IA
+├── README.md                                    # Instruções de execução e arquitetura do projeto
+├── package.json                                 # Configuração do projeto e scripts npm
+├── tsconfig.json                                # Configuração rigorosa do TypeScript
+├── src/                                         # Código-fonte do motor
+│   ├── types.ts                                 # Contratos e tipos TypeScript
+│   ├── money.ts                                 # Aritmética de centavos inteiros e truncamento
+│   ├── policy.ts                                # Resolução dinâmica de política e centros de custo
+│   ├── currency.ts                              # Módulo cambial PTAX e fallback de dia útil
+│   ├── engine.ts                                # Motor de cálculo puro e regras de negócio
+│   └── cli.ts                                   # Interface de linha de comando
+├── tests/                                       # Suítes de testes automatizados (37 testes)
+│   ├── cli.test.ts                              # Testes de integração E2E da CLI
+│   ├── cost_center.test.ts                      # Testes de centros de custo e fallback
+│   ├── currency.test.ts                         # Testes de conversão cambial e PTAX
+│   ├── foreign_currency.test.ts                 # Testes de validação fiscal em moeda estrangeira
+│   ├── manual_approval.test.ts                  # Testes da fila de aprovação manual (> R$ 500)
+│   ├── edge_cases.test.ts                       # Testes de casos de borda (fins de semana, estornos)
+│   └── rules.test.ts                            # Testes unitários das regras RN-001 a RN-012
+├── specs/001-motor-reembolso/                   # Trilha de especificação SDD
+│   ├── spec.md                                  # Especificação formal v2.0 e regras de negócio
+│   ├── plan.md                                  # Plano de arquitetura técnica v2.0
+│   ├── tasks.md                                 # Lista de tarefas atômicas (T-001 a T-019)
+│   └── DECISIONS.md                             # Log de decisões e resposta ao Envelope Lacrado
+├── docs/                                        # Documentação e auditoria
+│   ├── RELATORIO.md                             # Relatório final organizado pelos 4 Ds e Envelope
+│   └── sessions/                                # Transcrições das sessões de trabalho com a IA
+│       ├── 01-especificacao-e-decisoes.md       # Sessão 01: Especificação inicial v1.0
+│       ├── 02-planejamento-e-tasks.md           # Sessão 02: Plano técnico e criação de tasks
+│       ├── 03-envelope-lacrado-e-spec-v2.md     # Sessão 03: Absorção da Política v4
+│       └── 04-implementacao-e-testes.md         # Sessão 04: Implementação TDD e testes
+└── exemplos/                                    # Arquivos de entrada e referência
+    ├── despesas-exemplo.json                    # Arquivo de despesas original v3
+    └── envelope/                                # Arquivos fornecidos no Envelope Lacrado v4
+        ├── politica-v4.json
+        ├── cambio.json
+        ├── despesas-envelope.json
+        └── despesas-envelope-cc-desconhecido.json
+```
