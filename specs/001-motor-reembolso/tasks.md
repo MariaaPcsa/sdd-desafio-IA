@@ -114,10 +114,10 @@
   - **Aceite:** Teste unitário garante que item com reembolso > R$ 500 recebe status `PENDENTE_APROVACAO` e incrementa contador no resumo.
   - **Commit:** `feat(T-018)`
 
-- [ ] **T-019** — Atualizar CLI com flags opcionais `--politica` e `--cambio` e testes E2E dos cenários do envelope
+- [x] **T-019** — Atualizar CLI com flags opcionais `--politica` e `--cambio` e testes E2E dos cenários do envelope
   - **Atende:** AMB-E05, Critérios de Aceite v2.0
   - **Aceite:** Testes E2E contra `despesas-envelope.json`, `despesas-envelope-cc-desconhecido.json` e `despesas-exemplo.json` passam com 100% de sucesso.
-  - **Commit:**
+  - **Commit:** `feat(T-019)`
 
 ---
 
