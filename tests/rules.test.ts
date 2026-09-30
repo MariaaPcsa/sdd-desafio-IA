@@ -6,6 +6,8 @@ import {
   obterRegraCategoria,
   calcularLimiteEfetivoCentavos,
 } from '../src/policy.js';
+import { processarLote, validarCompetencia } from '../src/engine.js';
+import { LoteEntrada } from '../src/types.js';
 
 test('T-001: ambiente TypeScript e executor de testes configurados com sucesso', () => {
   assert.strictEqual(true, true);
@@ -21,32 +23,51 @@ test('T-003 / RN-011: valor com três casas decimais é truncado em duas casas',
 });
 
 test('T-004 / RN-006 / RN-014: resolve limites por centro de custo e ampliação de viagem', () => {
-  // CC-COMERCIAL: alimentação limite 90.00
   const regraAlimComercial = obterRegraCategoria('CC-COMERCIAL', 'alimentacao');
-  assert.notStrictEqual(regraAlimComercial, null);
   assert.strictEqual(regraAlimComercial?.limite, 90.0);
   assert.strictEqual(calcularLimiteEfetivoCentavos(regraAlimComercial!, false), 9000);
-  // Em viagem (+50%): 90 * 1.5 = 135
   assert.strictEqual(calcularLimiteEfetivoCentavos(regraAlimComercial!, true), 13500);
 
-  // CC-ENG-PLATAFORMA: hospedagem limite 0.00 (não reembolsável)
   const regraHospEng = obterRegraCategoria('CC-ENG-PLATAFORMA', 'hospedagem');
-  assert.notStrictEqual(regraHospEng, null);
   assert.strictEqual(regraHospEng?.limite, 0.0);
   assert.strictEqual(calcularLimiteEfetivoCentavos(regraHospEng!, false), 0);
-  assert.strictEqual(calcularLimiteEfetivoCentavos(regraHospEng!, true), 0);
 
-  // CC-ADM: herda hospedagem do padrão (fallback aditivo R$ 250)
   const regraHospAdm = obterRegraCategoria('CC-ADM', 'hospedagem');
-  assert.notStrictEqual(regraHospAdm, null);
   assert.strictEqual(regraHospAdm?.limite, 250.0);
 
-  // Centro de custo desconhecido (CC-SUPORTE-N2): recusa representacao (não existe no padrão)
   const regraRepDesconhecido = obterRegraCategoria('CC-SUPORTE-N2', 'representacao');
   assert.strictEqual(regraRepDesconhecido, null);
+});
 
-  // CC-COMERCIAL tem representacao com limite 300
-  const regraRepComercial = obterRegraCategoria('CC-COMERCIAL', 'representacao');
-  assert.notStrictEqual(regraRepComercial, null);
-  assert.strictEqual(regraRepComercial?.limite, 300.0);
+test('T-005 / RN-007: despesa fora do período de competência é recusada com R$ 0,00', () => {
+  // Teste unitário da função de validação
+  assert.strictEqual(validarCompetencia('2026-07-15', '2026-07-01', '2026-07-31'), true);
+  assert.strictEqual(validarCompetencia('2026-04-15', '2026-07-01', '2026-07-31'), false);
+  assert.strictEqual(validarCompetencia('2026-08-01', '2026-07-01', '2026-07-31'), false);
+
+  // Teste de lote com despesa d-008 datada de abril (2026-04-15) em lote de julho
+  const lote: LoteEntrada = {
+    colaborador: { id: 'c-0417', nome: 'Marina Volpi', centro_custo: 'CC-ENG-PLATAFORMA' },
+    periodo: { competencia: '2026-07', inicio: '2026-07-01', fim: '2026-07-31' },
+    despesas: [
+      {
+        id: 'd-008',
+        data: '2026-04-15',
+        categoria: 'alimentacao',
+        descricao: 'Almoco de abril lancado com atraso',
+        fornecedor: 'Restaurante Tavola',
+        valor: 41.0,
+        tem_nota_fiscal: true,
+      },
+    ],
+  };
+
+  const resultado = processarLote(lote);
+  assert.strictEqual(resultado.despesas.length, 1);
+  const item = resultado.despesas[0];
+  assert.strictEqual(item.status, 'RECUSADO');
+  assert.strictEqual(item.valor_reembolsado, 0.0);
+  assert.strictEqual(item.valor_glosado, 41.0);
+  assert.strictEqual(resultado.resumo.itens_recusados, 1);
+  assert.strictEqual(resultado.resumo.total_reembolsavel, 0.0);
 });

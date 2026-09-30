@@ -32,10 +32,10 @@
 
 ## Fase 2 — Regras de Negócio e Pipeline Central
 
-- [ ] **T-005** — Implementar validação do período de competência
+- [x] **T-005** — Implementar validação do período de competência
   - **Atende:** RN-007, AMB-008
   - **Aceite:** Teste `test('RN-007: despesa fora do período de competência é recusada com R$ 0,00')` passa.
-  - **Commit:**
+  - **Commit:** `feat(T-005)`
 
 - [ ] **T-006** — Implementar validação e normalização de categorias elegíveis
   - **Atende:** RN-009, AMB-010
