@@ -61,6 +61,48 @@ export function processarLote(
   let itensPendentesAprovacao = 0;
   let itensRecusados = 0;
 
+  const LIMITE_APROVACAO_MANUAL_CENTAVOS = toCents(500.0);
+
+  function registrarAprovacao(
+    item: DespesaEntrada,
+    categoriaNorm: string,
+    valorSolicitadoCentavos: number,
+    valorReembolsadoCentavos: number,
+    valorGlosadoCentavos: number,
+    statusBase: 'APROVADO' | 'APROVADO_PARCIAL',
+    justificativas: string[]
+  ) {
+    let status: StatusDespesa = statusBase;
+    if (valorReembolsadoCentavos > LIMITE_APROVACAO_MANUAL_CENTAVOS) {
+      status = 'PENDENTE_APROVACAO';
+      justificativas.push(
+        `Valor reembolsável (R$ ${fromCents(valorReembolsadoCentavos).toFixed(2)}) superior ao limite de R$ 500,00. Item encaminhado para a fila de aprovação manual do gestor.`
+      );
+    }
+
+    totalReembolsavelCentavos += valorReembolsadoCentavos;
+    totalGlosadoCentavos += valorGlosadoCentavos;
+
+    if (status === 'PENDENTE_APROVACAO') {
+      itensPendentesAprovacao++;
+    } else if (status === 'APROVADO_PARCIAL') {
+      itensAprovadosParcialmente++;
+    } else {
+      itensAprovados++;
+    }
+
+    resultados.push({
+      id: item.id,
+      data: item.data,
+      categoria: categoriaNorm,
+      valor_solicitado: fromCents(valorSolicitadoCentavos),
+      valor_reembolsado: fromCents(valorReembolsadoCentavos),
+      valor_glosado: fromCents(valorGlosadoCentavos),
+      status,
+      justificativas,
+    });
+  }
+
   const despesasProcessadasSet = new Set<string>();
   const consumoDiarioMap = new Map<string, number>();
 
@@ -211,44 +253,36 @@ export function processarLote(
       }
 
       if (valorSolicitadoCentavos <= saldoDisponivelCentavos) {
-        itensAprovados++;
-        totalReembolsavelCentavos += valorSolicitadoCentavos;
         consumoDiarioMap.set(keyDiaria, consumidoAteAgora + valorSolicitadoCentavos);
         justificativas.push('Despesa aprovada dentro do limite diário.');
-        resultados.push({
-          id: item.id,
-          data: item.data,
-          categoria: categoriaNorm,
-          valor_solicitado: fromCents(valorSolicitadoCentavos),
-          valor_reembolsado: fromCents(valorSolicitadoCentavos),
-          valor_glosado: 0.0,
-          status: 'APROVADO',
-          justificativas,
-        });
+        registrarAprovacao(
+          item,
+          categoriaNorm,
+          valorSolicitadoCentavos,
+          valorSolicitadoCentavos,
+          0,
+          'APROVADO',
+          justificativas
+        );
         continue;
       } else {
         // Ultrapassa o teto diário: reembolso parcial
-        itensAprovadosParcialmente++;
         const valorReembolsadoCentavos = saldoDisponivelCentavos;
         const valorGlosadoCentavos = valorSolicitadoCentavos - saldoDisponivelCentavos;
-
-        totalReembolsavelCentavos += valorReembolsadoCentavos;
-        totalGlosadoCentavos += valorGlosadoCentavos;
         consumoDiarioMap.set(keyDiaria, tetoDiarioCentavos);
 
         justificativas.push(
           `Limite diário da categoria '${categoriaNorm}' atingido (teto: R$ ${fromCents(tetoDiarioCentavos).toFixed(2)}). Valor excedente de R$ ${fromCents(valorGlosadoCentavos).toFixed(2)} glosado.`
         );
-        resultados.push({
-          id: item.id,
-          data: item.data,
-          categoria: categoriaNorm,
-          valor_solicitado: fromCents(valorSolicitadoCentavos),
-          valor_reembolsado: fromCents(valorReembolsadoCentavos),
-          valor_glosado: fromCents(valorGlosadoCentavos),
-          status: 'APROVADO_PARCIAL',
-          justificativas,
-        });
+        registrarAprovacao(
+          item,
+          categoriaNorm,
+          valorSolicitadoCentavos,
+          valorReembolsadoCentavos,
+          valorGlosadoCentavos,
+          'APROVADO_PARCIAL',
+          justificativas
+        );
         continue;
       }
     }
@@ -283,60 +317,50 @@ export function processarLote(
       );
 
       if (valorSolicitadoCentavos <= tetoHospedagemCentavos) {
-        itensAprovados++;
-        totalReembolsavelCentavos += valorSolicitadoCentavos;
         justificativas.push(
           `Hospedagem aprovada dentro do limite de ${diarias} diária(s) (teto: R$ ${fromCents(tetoHospedagemCentavos).toFixed(2)}).`
         );
-        resultados.push({
-          id: item.id,
-          data: item.data,
-          categoria: categoriaNorm,
-          valor_solicitado: fromCents(valorSolicitadoCentavos),
-          valor_reembolsado: fromCents(valorSolicitadoCentavos),
-          valor_glosado: 0.0,
-          status: 'APROVADO',
-          justificativas,
-        });
+        registrarAprovacao(
+          item,
+          categoriaNorm,
+          valorSolicitadoCentavos,
+          valorSolicitadoCentavos,
+          0,
+          'APROVADO',
+          justificativas
+        );
         continue;
       } else {
-        itensAprovadosParcialmente++;
         const valorReembolsadoCentavos = tetoHospedagemCentavos;
         const valorGlosadoCentavos = valorSolicitadoCentavos - tetoHospedagemCentavos;
-
-        totalReembolsavelCentavos += valorReembolsadoCentavos;
-        totalGlosadoCentavos += valorGlosadoCentavos;
 
         justificativas.push(
           `Hospedagem atingiu o limite de ${diarias} diária(s) (teto: R$ ${fromCents(tetoHospedagemCentavos).toFixed(2)}). Excedente de R$ ${fromCents(valorGlosadoCentavos).toFixed(2)} glosado.`
         );
-        resultados.push({
-          id: item.id,
-          data: item.data,
-          categoria: categoriaNorm,
-          valor_solicitado: fromCents(valorSolicitadoCentavos),
-          valor_reembolsado: fromCents(valorReembolsadoCentavos),
-          valor_glosado: fromCents(valorGlosadoCentavos),
-          status: 'APROVADO_PARCIAL',
-          justificativas,
-        });
+        registrarAprovacao(
+          item,
+          categoriaNorm,
+          valorSolicitadoCentavos,
+          valorReembolsadoCentavos,
+          valorGlosadoCentavos,
+          'APROVADO_PARCIAL',
+          justificativas
+        );
         continue;
       }
     }
 
     // Caso surja outra periodicidade no futuro
-    itensAprovados++;
-    totalReembolsavelCentavos += valorSolicitadoCentavos;
-    resultados.push({
-      id: item.id,
-      data: item.data,
-      categoria: categoriaNorm,
-      valor_solicitado: fromCents(valorSolicitadoCentavos),
-      valor_reembolsado: fromCents(valorSolicitadoCentavos),
-      valor_glosado: 0.0,
-      status: 'APROVADO',
-      justificativas: ['Despesa aprovada.'],
-    });
+    justificativas.push('Despesa aprovada.');
+    registrarAprovacao(
+      item,
+      categoriaNorm,
+      valorSolicitadoCentavos,
+      valorSolicitadoCentavos,
+      0,
+      'APROVADO',
+      justificativas
+    );
   }
 
   const resumo: ResumoSaida = {

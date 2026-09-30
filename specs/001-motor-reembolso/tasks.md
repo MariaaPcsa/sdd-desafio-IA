@@ -109,10 +109,10 @@
   - **Aceite:** Testes de USD sem nota > R$ 100 BRL recusado e EUR sem nota <= R$ 100 BRL aprovado passam.
   - **Commit:** `feat(T-017)`
 
-- [ ] **T-018** — Implementar classificação da fila de aprovação manual para valores > R$ 500 (`RN-015`)
+- [x] **T-018** — Implementar classificação da fila de aprovação manual para valores > R$ 500 (`RN-015`)
   - **Atende:** RN-015, AMB-E06, DT-003
   - **Aceite:** Teste unitário garante que item com reembolso > R$ 500 recebe status `PENDENTE_APROVACAO` e incrementa contador no resumo.
-  - **Commit:**
+  - **Commit:** `feat(T-018)`
 
 - [ ] **T-019** — Atualizar CLI com flags opcionais `--politica` e `--cambio` e testes E2E dos cenários do envelope
   - **Atende:** AMB-E05, Critérios de Aceite v2.0
