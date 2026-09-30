@@ -23,10 +23,10 @@
   - **Aceite:** Testes unitários de conversão e truncamento de 3 casas passam em `tests/rules.test.ts`.
   - **Commit:** `feat(T-003)`
 
-- [ ] **T-004** — Criar módulo de configuração declarativa da política de reembolso padrão
+- [x] **T-004** — Criar módulo de configuração declarativa da política de reembolso padrão
   - **Atende:** plan.md Seção 4
   - **Aceite:** `src/policy.ts` criado com limites e multiplicadores isolados; testes de cálculo de tetos passam.
-  - **Commit:**
+  - **Commit:** `feat(T-004)`
 
 ---
 
