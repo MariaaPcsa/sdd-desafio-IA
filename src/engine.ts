@@ -55,12 +55,25 @@ export function processarLote(
       justificativas.push(
         `Despesa fora do período de competência (${periodo.inicio} a ${periodo.fim}). Lançamento não reembolsável.`
       );
+    }
+
+    // RN-009: Validação e normalização de categoria
+    const categoriaNorm = item.categoria.trim().toLowerCase();
+    const regraCategoria = obterRegraCategoria(colaborador.centro_custo, categoriaNorm, politica);
+    if (!regraCategoria) {
+      justificativas.push(
+        `Categoria '${item.categoria}' não é reembolsável para o centro de custo '${colaborador.centro_custo}'.`
+      );
+    }
+
+    // Se houve violações impeditivas até aqui (competência ou categoria)
+    if (justificativas.length > 0) {
       itensRecusados++;
       totalGlosadoCentavos += valorSolicitadoCentavos;
       resultados.push({
         id: item.id,
         data: item.data,
-        categoria: item.categoria.trim().toLowerCase(),
+        categoria: categoriaNorm,
         valor_solicitado: fromCents(valorSolicitadoCentavos),
         valor_reembolsado: 0.0,
         valor_glosado: fromCents(valorSolicitadoCentavos),

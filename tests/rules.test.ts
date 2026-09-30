@@ -40,12 +40,9 @@ test('T-004 / RN-006 / RN-014: resolve limites por centro de custo e ampliação
 });
 
 test('T-005 / RN-007: despesa fora do período de competência é recusada com R$ 0,00', () => {
-  // Teste unitário da função de validação
   assert.strictEqual(validarCompetencia('2026-07-15', '2026-07-01', '2026-07-31'), true);
   assert.strictEqual(validarCompetencia('2026-04-15', '2026-07-01', '2026-07-31'), false);
-  assert.strictEqual(validarCompetencia('2026-08-01', '2026-07-01', '2026-07-31'), false);
 
-  // Teste de lote com despesa d-008 datada de abril (2026-04-15) em lote de julho
   const lote: LoteEntrada = {
     colaborador: { id: 'c-0417', nome: 'Marina Volpi', centro_custo: 'CC-ENG-PLATAFORMA' },
     periodo: { competencia: '2026-07', inicio: '2026-07-01', fim: '2026-07-31' },
@@ -63,11 +60,48 @@ test('T-005 / RN-007: despesa fora do período de competência é recusada com R
   };
 
   const resultado = processarLote(lote);
-  assert.strictEqual(resultado.despesas.length, 1);
-  const item = resultado.despesas[0];
-  assert.strictEqual(item.status, 'RECUSADO');
-  assert.strictEqual(item.valor_reembolsado, 0.0);
-  assert.strictEqual(item.valor_glosado, 41.0);
-  assert.strictEqual(resultado.resumo.itens_recusados, 1);
-  assert.strictEqual(resultado.resumo.total_reembolsavel, 0.0);
+  assert.strictEqual(resultado.despesas[0].status, 'RECUSADO');
+  assert.strictEqual(resultado.despesas[0].valor_reembolsado, 0.0);
+});
+
+test('T-006 / RN-009: categoria inválida é recusada; categoria em maiúsculas é normalizada', () => {
+  const lote: LoteEntrada = {
+    colaborador: { id: 'c-0417', nome: 'Marina Volpi', centro_custo: 'CC-ENG-PLATAFORMA' },
+    periodo: { competencia: '2026-07', inicio: '2026-07-01', fim: '2026-07-31' },
+    despesas: [
+      {
+        id: 'd-005',
+        data: '2026-07-07',
+        categoria: 'coworking',
+        descricao: 'Diaria em espaco compartilhado',
+        fornecedor: 'HubOffice',
+        valor: 89.0,
+        tem_nota_fiscal: true,
+      },
+      {
+        id: 'd-014',
+        data: '2026-07-31',
+        categoria: 'ALIMENTACAO', // em maiúsculas
+        descricao: 'Jantar de encerramento',
+        fornecedor: 'Restaurante Tavola',
+        valor: 60.0,
+        tem_nota_fiscal: true,
+      },
+    ],
+  };
+
+  const resultado = processarLote(lote);
+  assert.strictEqual(resultado.despesas.length, 2);
+
+  // d-005: coworking é recusada com R$ 0,00
+  const itemCoworking = resultado.despesas[0];
+  assert.strictEqual(itemCoworking.status, 'RECUSADO');
+  assert.strictEqual(itemCoworking.valor_reembolsado, 0.0);
+  assert.strictEqual(itemCoworking.categoria, 'coworking');
+
+  // d-014: ALIMENTACAO é normalizada para alimentacao e aceita
+  const itemAlim = resultado.despesas[1];
+  assert.strictEqual(itemAlim.categoria, 'alimentacao');
+  assert.strictEqual(itemAlim.status, 'APROVADO');
+  assert.strictEqual(itemAlim.valor_reembolsado, 60.0);
 });

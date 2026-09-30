@@ -37,10 +37,10 @@
   - **Aceite:** Teste `test('RN-007: despesa fora do período de competência é recusada com R$ 0,00')` passa.
   - **Commit:** `feat(T-005)`
 
-- [ ] **T-006** — Implementar validação e normalização de categorias elegíveis
+- [x] **T-006** — Implementar validação e normalização de categorias elegíveis
   - **Atende:** RN-009, AMB-010
   - **Aceite:** Teste `test('RN-009: categoria inválida é recusada; categoria em maiúsculas é normalizada')` passa.
-  - **Commit:**
+  - **Commit:** `feat(T-006)`
 
 - [ ] **T-007** — Implementar detecção e tratamento de despesas duplicadas
   - **Atende:** RN-008, AMB-005
