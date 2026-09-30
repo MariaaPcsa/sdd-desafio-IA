@@ -8,10 +8,10 @@
 
 ## Fase 1 — Fundação
 
-- [ ] **T-001** — Configurar ambiente TypeScript, scripts no `package.json` e runner de testes
+- [x] **T-001** — Configurar ambiente TypeScript, scripts no `package.json` e runner de testes
   - **Atende:** Infraestrutura, plan.md Seção 1
   - **Aceite:** `npm run typecheck` e `npm test` executam sem erros.
-  - **Commit:**
+  - **Commit:** `feat(T-001)`
 
 - [ ] **T-002** — Definir contratos de dados e interfaces TypeScript de entrada, saída, política e câmbio
   - **Atende:** spec.md Seção 4, plan.md Seção 3

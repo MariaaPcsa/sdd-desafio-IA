@@ -1,0 +1,27 @@
+{
+  "name": "motor-reembolso",
+  "version": "2.0.0",
+  "description": "Motor de cálculo de reembolso de despesas corporativas",
+  "type": "module",
+  "main": "src/cli.ts",
+  "bin": {
+    "reembolso": "src/cli.ts"
+  },
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "reembolso",
+    "sdd",
+    "motor-calculo"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

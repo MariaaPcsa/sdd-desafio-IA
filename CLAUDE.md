@@ -44,5 +44,5 @@ Quando o código e a spec discordarem, a spec está certa e o código é o bug �
 
 - Não realiza OCR ou leitura de comprovantes físicos.
 - Não efetua chamadas a APIs bancárias ou gateways de pagamento.
-- Não converte moedas estrangeiras (opera exclusivamente em BRL).
 - Não gerencia autenticação ou controle de permissões.
+- Não busca taxas de câmbio na internet em tempo real (utiliza o arquivo de câmbio oficial).
