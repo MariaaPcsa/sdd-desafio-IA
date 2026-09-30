@@ -18,10 +18,10 @@
   - **Aceite:** Arquivo `src/types.ts` criado e compilando sem erros.
   - **Commit:** `feat(T-002)`
 
-- [ ] **T-003** — Implementar módulo de precisão monetária e truncamento em centavos inteiros
+- [x] **T-003** — Implementar módulo de precisão monetária e truncamento em centavos inteiros
   - **Atende:** RN-011, AMB-009, DT-001
   - **Aceite:** Testes unitários de conversão e truncamento de 3 casas passam em `tests/rules.test.ts`.
-  - **Commit:**
+  - **Commit:** `feat(T-003)`
 
 - [ ] **T-004** — Criar módulo de configuração declarativa da política de reembolso padrão
   - **Atende:** plan.md Seção 4
