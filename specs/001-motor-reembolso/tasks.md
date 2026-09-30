@@ -85,10 +85,10 @@
 
 ## Fase 4 — Interface CLI Inicial
 
-- [ ] **T-014** — Implementar comando CLI com I/O de arquivos e teste E2E do arquivo de referência v3
+- [x] **T-014** — Implementar comando CLI com I/O de arquivos e teste E2E do arquivo de referência v3
   - **Atende:** Interface CLI, Critérios de Aceite da spec
   - **Aceite:** `npm start -- calcular --input exemplos/despesas-exemplo.json --output ...` gera arquivo JSON idêntico ao contrato da spec e teste E2E passa.
-  - **Commit:**
+  - **Commit:** `feat(T-014)`
 
 ---
 
