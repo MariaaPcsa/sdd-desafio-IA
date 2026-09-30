@@ -104,10 +104,10 @@
   - **Aceite:** Testes de conversão em dia útil, conversão em sábado usando sexta-feira e recusa integral de moeda não cotada (GBP) passam.
   - **Commit:** `feat(T-016)`
 
-- [ ] **T-017** — Integrar validação fiscal em BRL para despesas internacionais (`RN-005` + `RN-013`)
+- [x] **T-017** — Integrar validação fiscal em BRL para despesas internacionais (`RN-005` + `RN-013`)
   - **Atende:** RN-005, RN-013, AMB-E04
   - **Aceite:** Testes de USD sem nota > R$ 100 BRL recusado e EUR sem nota <= R$ 100 BRL aprovado passam.
-  - **Commit:**
+  - **Commit:** `feat(T-017)`
 
 - [ ] **T-018** — Implementar classificação da fila de aprovação manual para valores > R$ 500 (`RN-015`)
   - **Atende:** RN-015, AMB-E06, DT-003

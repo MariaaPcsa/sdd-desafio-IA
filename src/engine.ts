@@ -15,6 +15,7 @@ import {
 } from './types.js';
 import { toCents, fromCents, truncateTwoDecimals } from './money.js';
 import { POLITICA_PADRAO_V4, obterRegraCategoria, calcularLimiteEfetivoCentavos } from './policy.js';
+import { converterParaBrl, TABELA_CAMBIO_PADRAO } from './currency.js';
 
 /**
  * RN-007: Validação de Competência.
@@ -65,12 +66,38 @@ export function processarLote(
 
   for (const item of despesas) {
     const justificativas: string[] = [];
-    const valorSolicitadoCentavos = toCents(item.valor);
-    totalSolicitadoCentavos += valorSolicitadoCentavos;
+    const moedaItem = item.moeda ?? 'BRL';
+    const conversao = converterParaBrl(
+      item.valor,
+      moedaItem,
+      item.data,
+      tabelaCambio ?? TABELA_CAMBIO_PADRAO
+    );
+
+    let temViolacaoImpeditiva = false;
+    let valorSolicitadoCentavos: number;
+    if (!conversao) {
+      temViolacaoImpeditiva = true;
+      valorSolicitadoCentavos = toCents(item.valor);
+      totalSolicitadoCentavos += valorSolicitadoCentavos;
+      justificativas.push(
+        `Moeda '${moedaItem}' não possui cotação oficial disponível na data ${item.data}. Lançamento não reembolsável.`
+      );
+    } else {
+      valorSolicitadoCentavos = conversao.valorBrlCentavos;
+      totalSolicitadoCentavos += valorSolicitadoCentavos;
+      if (conversao.taxa !== 1.0) {
+        const obsDiaUtil = conversao.ehDiaAnterior ? ` do dia útil ${conversao.dataCotacao}` : '';
+        justificativas.push(
+          `Conversão cambial: ${item.valor.toFixed(2)} ${conversao.moedaOrigem} convertido para R$ ${conversao.valorBrl.toFixed(2)} (taxa PTAX de ${conversao.taxa.toFixed(2)}${obsDiaUtil}).`
+        );
+      }
+    }
 
     // RN-007: Competência
     const dentroCompetencia = validarCompetencia(item.data, periodo.inicio, periodo.fim);
     if (!dentroCompetencia) {
+      temViolacaoImpeditiva = true;
       justificativas.push(
         `Despesa fora do período de competência (${periodo.inicio} a ${periodo.fim}). Lançamento não reembolsável.`
       );
@@ -80,10 +107,12 @@ export function processarLote(
     const categoriaNorm = item.categoria.trim().toLowerCase();
     const regraCategoria = obterRegraCategoria(colaborador.centro_custo, categoriaNorm, politica);
     if (!regraCategoria) {
+      temViolacaoImpeditiva = true;
       justificativas.push(
         `Categoria '${item.categoria}' não é reembolsável para o centro de custo '${colaborador.centro_custo}'.`
       );
     } else if (regraCategoria.limite === 0) {
+      temViolacaoImpeditiva = true;
       justificativas.push(
         `Categoria '${item.categoria}' não é reembolsável para o centro de custo '${colaborador.centro_custo}' (limite zero).`
       );
@@ -92,6 +121,7 @@ export function processarLote(
     // RN-008: Detecção de duplicatas
     const fingerprintDuplicata = `${item.data}|${categoriaNorm}|${item.fornecedor.trim().toLowerCase()}|${valorSolicitadoCentavos}|${item.descricao.trim().toLowerCase()}`;
     if (despesasProcessadasSet.has(fingerprintDuplicata)) {
+      temViolacaoImpeditiva = true;
       justificativas.push(
         `Despesa duplicada identificada (mesma data, fornecedor, categoria, descrição e valor). Lançamento recusado.`
       );
@@ -102,13 +132,14 @@ export function processarLote(
     // RN-005: Conformidade fiscal (nota fiscal obrigatória acima de R$ 100,00)
     const limiteNotaCentavos = toCents(politica.nota_fiscal_obrigatoria_acima_de ?? 100.0);
     if (valorSolicitadoCentavos > limiteNotaCentavos && !item.tem_nota_fiscal) {
+      temViolacaoImpeditiva = true;
       justificativas.push(
         `Nota fiscal obrigatória para despesas com valor superior a ${fromCents(limiteNotaCentavos).toFixed(2)}. Lançamento recusado por inconformidade fiscal.`
       );
     }
 
     // Se houve violações impeditivas até aqui (competência, categoria, duplicata ou nota fiscal)
-    if (justificativas.length > 0 || !regraCategoria) {
+    if (temViolacaoImpeditiva || !regraCategoria) {
       itensRecusados++;
       totalGlosadoCentavos += valorSolicitadoCentavos;
       resultados.push({
