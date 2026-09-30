@@ -1,6 +1,6 @@
 # Spec — Motor de Cálculo de Reembolso
 
-**Versão:** 1.0 · **Status:** aprovada · **Última alteração:** 2026-09-28
+**Versão:** 2.0 · **Status:** aprovada · **Última alteração:** 2026-09-30
 
 > **Regra de ouro deste arquivo:** ele descreve o QUÊ e o PORQUÊ. Nenhuma linha
 > aqui cita linguagem, biblioteca, classe, função ou estrutura de pastas.
@@ -12,17 +12,17 @@
 
 ## 1. Problema
 
-Atualmente, o processo de conferência e reembolso de despesas corporativas é manual: a equipe financeira analisa despesas linha por linha confrontando planilhas contra a política institucional. Esse processo é moroso, sujeito a inconsistências de interpretação e resulta em atrasos nos pagamentos ou reembolsos indevidos que oneram a empresa.
+Atualmente, o processo de conferência e reembolso de despesas corporativas é manual: a equipe financeira analisa despesas linha por linha confrontando planilhas contra a política institucional. Esse processo é moroso, sujeito a inconsistências de interpretação e resulta em atrasos nos pagamentos ou reembolsos indevidos que oneram a empresa. Além disso, com a política v4, os limites variam por centro de custo e passam a existir despesas internacionais com conversão de câmbio por data e fluxo de aprovação para valores elevados.
 
 ## 2. Objetivo
 
-Processar automaticamente um lote de despesas corporativas em formato estruturado (JSON), aplicando rigorosamente as diretrizes da política de reembolsos para determinar o valor devido a cada colaborador com justificativas transparentes e auditáveis para cada lançamento.
+Processar automaticamente um lote de despesas corporativas em formato estruturado (JSON), aplicando dinamicamente a tabela de limites vigente por centro de custo, realizando conversão cambial por data quando aplicável, identificando itens para fila de aprovação manual e justificando cada decisão de forma transparente e auditável.
 
 ## 3. Fora de escopo
 
 - Não realiza leitura de imagens de recibos ou processamento OCR.
 - Não realiza integração direta com bancos, ERPs ou gateways de pagamento.
-- Não realiza conversão cambial (todas as despesas são tratadas em Real - BRL).
+- Não busca taxas de câmbio em tempo real na internet (utiliza estritamente o arquivo oficial de câmbio fornecido).
 - Não gerencia autenticação, autorização ou controle de acesso de usuários.
 - Não altera arquivos de entrada originais; apenas gera o relatório de resultado em arquivo de saída.
 
@@ -32,7 +32,7 @@ Processar automaticamente um lote de despesas corporativas em formato estruturad
 
 ### 4.1 Entrada
 
-Conforme estrutura de `exemplos/despesas-exemplo.json`.
+Conforme estrutura de `exemplos/despesas-exemplo.json` e `exemplos/envelope/despesas-envelope.json`.
 
 **Campos de cabeçalho:**
 
@@ -40,7 +40,7 @@ Conforme estrutura de `exemplos/despesas-exemplo.json`.
 |---|---|---|---|
 | `colaborador.id` | String | Identificador único do colaborador (ex: `"c-0417"`) | Sim |
 | `colaborador.nome` | String | Nome completo do colaborador | Sim |
-| `colaborador.centro_custo` | String | Centro de custo de lotação | Sim |
+| `colaborador.centro_custo` | String | Centro de custo de lotação (ex: `"CC-COMERCIAL"`, `"CC-ENG-PLATAFORMA"`) | Sim |
 | `colaborador.em_viagem` | Booleano | Indicador se o colaborador estava em viagem a trabalho | Não (Padrão: `false`) |
 | `periodo.competencia` | String | Mês/ano de competência no formato `YYYY-MM` | Sim |
 | `periodo.inicio` | String | Data de início do período (`YYYY-MM-DD`) | Sim |
@@ -50,12 +50,13 @@ Conforme estrutura de `exemplos/despesas-exemplo.json`.
 
 | Campo | Tipo | Significado | Obrigatório |
 |---|---|---|---|
-| `id` | String | Identificador do lançamento (ex: `"d-001"`) | Sim |
+| `id` | String | Identificador do lançamento (ex: `"d-001"`, `"e-001"`) | Sim |
 | `data` | String | Data da ocorrência no formato `YYYY-MM-DD` | Sim |
-| `categoria` | String | Categoria da despesa (ex: `"alimentacao"`, `"transporte_urbano"`, `"hospedagem"`) | Sim |
+| `categoria` | String | Categoria da despesa (ex: `"alimentacao"`, `"transporte_urbano"`, `"hospedagem"`, `"representacao"`) | Sim |
 | `descricao` | String | Descrição detalhada do gasto | Sim |
 | `fornecedor` | String | Nome do estabelecimento prestador | Sim |
-| `valor` | Número | Valor da despesa em reais (aceita decimais) | Sim |
+| `valor` | Número | Valor da despesa na moeda informada | Sim |
+| `moeda` | String | Código ISO 4217 da moeda (`"BRL"`, `"USD"`, `"EUR"`). Quando ausente, assume `"BRL"`. | Não (Padrão: `"BRL"`) |
 | `tem_nota_fiscal` | Booleano | Indica se há comprovação fiscal anexada | Sim |
 
 ---
@@ -77,12 +78,13 @@ Arquivo JSON estruturado contendo o resumo consolidado do lote e o detalhamento 
 
 | Campo | Tipo | Significado |
 |---|---|---|
-| `total_solicitado` | Número | Soma dos valores solicitados válidos em reais (2 decimais) |
-| `total_reembolsavel` | Número | Soma dos valores aprovados para reembolso (2 decimais) |
+| `total_solicitado` | Número | Soma dos valores solicitados convertidos em BRL (2 decimais) |
+| `total_reembolsavel` | Número | Soma dos valores aprovados ou pendentes de reembolso em BRL (2 decimais) |
 | `total_glosado` | Número | Soma dos valores não reembolsados (`total_solicitado - total_reembolsavel`) |
 | `itens_processados` | Inteiro | Total de itens avaliados |
 | `itens_aprovados` | Inteiro | Quantidade de itens reembolsados integralmente |
 | `itens_aprovados_parcialmente` | Inteiro | Quantidade de itens com corte parcial de excedente |
+| `itens_pendentes_aprovacao` | Inteiro | Quantidade de itens cujo valor reembolsável > R$ 500,00 |
 | `itens_recusados` | Inteiro | Quantidade de itens rejeitados (reembolso R$ 0,00) |
 
 **Campos de cada item em `despesas[]`:**
@@ -92,209 +94,142 @@ Arquivo JSON estruturado contendo o resumo consolidado do lote e o detalhamento 
 | `id` | String | Identificador original da despesa |
 | `data` | String | Data da despesa (`YYYY-MM-DD`) |
 | `categoria` | String | Categoria informada (normalizada para minúsculas) |
-| `valor_solicitado` | Número | Valor original truncado em 2 casas decimais |
-| `valor_reembolsado` | Número | Valor efetivamente aprovado para reembolso |
-| `valor_glosado` | Número | Diferença entre o solicitado e o reembolsado |
-| `status` | String | `"APROVADO"`, `"APROVADO_PARCIAL"` ou `"RECUSADO"` |
-| `justificativas` | Array[String] | Lista de todos os motivos e regras que incidiram sobre o item |
-
-#### Exemplo de Saída:
-
-```json
-{
-  "colaborador": {
-    "id": "c-0417",
-    "nome": "Marina Volpi",
-    "centro_custo": "CC-ENG-PLATAFORMA",
-    "em_viagem": false
-  },
-  "periodo": {
-    "competencia": "2026-07",
-    "inicio": "2026-07-01",
-    "fim": "2026-07-31"
-  },
-  "resumo": {
-    "total_solicitado": 1944.93,
-    "total_reembolsavel": 1056.23,
-    "total_glosado": 888.70,
-    "itens_processados": 14,
-    "itens_aprovados": 6,
-    "itens_aprovados_parcialmente": 1,
-    "itens_recusados": 7
-  },
-  "despesas": [
-    {
-      "id": "d-001",
-      "data": "2026-07-03",
-      "categoria": "alimentacao",
-      "valor_solicitado": 72.50,
-      "valor_reembolsado": 60.00,
-      "valor_glosado": 12.50,
-      "status": "APROVADO_PARCIAL",
-      "justificativas": [
-        "Limite diário da categoria alimentação atingido (teto: R$ 60,00). Valor excedente de R$ 12,50 glosado."
-      ]
-    },
-    {
-      "id": "d-002",
-      "data": "2026-07-03",
-      "categoria": "alimentacao",
-      "valor_solicitado": 38.00,
-      "valor_reembolsado": 0.00,
-      "valor_glosado": 38.00,
-      "status": "RECUSADO",
-      "justificativas": [
-        "Limite diário da categoria alimentação já esgotado para a data 2026-07-03."
-      ]
-    }
-  ]
-}
-```
+| `valor_solicitado` | Número | Valor solicitado convertido em BRL (truncado em 2 casas decimais) |
+| `valor_reembolsado` | Número | Valor aprovado ou pré-aprovado para reembolso em BRL |
+| `valor_glosado` | Número | Diferença entre o solicitado e o reembolsado em BRL |
+| `status` | String | `"APROVADO"`, `"APROVADO_PARCIAL"`, `"PENDENTE_APROVACAO"` ou `"RECUSADO"` |
+| `justificativas` | Array[String] | Lista de todos os motivos, regras e detalhes de conversão que incidiram sobre o item |
 
 ---
 
 ## 5. Regras de Negócio
 
 ### RN-001 — Limite Diário de Alimentação
-- **Regra:** O teto de despesas reembolsáveis para a categoria `alimentacao` é de R$ 60,00 por dia civil. O limite é consumido por data de ocorrência na ordem de aparição no arquivo de entrada. Despesas subsequentes no mesmo dia que encontrarem o saldo diário zerado terão reembolso de R$ 0,00.
-- **Origem:** Política do RH, item 1.
-- **Aceite:** No dia 2026-07-03, com `d-001` (R$ 72,50) e `d-002` (R$ 38,00), `d-001` reembolsa R$ 60,00 e `d-002` reembolsa R$ 0,00.
+- **Regra:** O teto de despesas reembolsáveis para a categoria `alimentacao` é determinado pela política do centro de custo do colaborador (ou bloco padrão se omitido). O limite é consumido por data de ocorrência na ordem de aparição no arquivo de entrada. Despesas subsequentes no mesmo dia que encontrarem o saldo diário zerado terão reembolso de R$ 0,00.
+- **Origem:** Política do RH, item 1 e Política v4.
+- **Aceite:** Para colaborador de `CC-COMERCIAL` (limite R$ 90,00/dia), duas despesas de R$ 50,00 no mesmo dia resultam em R$ 50,00 para a primeira e R$ 40,00 para a segunda (glosa de R$ 10,00).
 
 ### RN-002 — Limite Diário de Transporte Urbano
-- **Regra:** O teto de despesas reembolsáveis para a categoria `transporte_urbano` é de R$ 80,00 por dia civil, acumulado por data na ordem de processamento.
-- **Origem:** Política do RH, item 2.
-- **Aceite:** Uma despesa de transporte de R$ 100,00 com nota fiscal em dia sem outras despesas reembolsa R$ 80,00 e glosa R$ 20,00.
+- **Regra:** O teto de despesas reembolsáveis para a categoria `transporte_urbano` é definido pela tabela do centro de custo do colaborador por dia civil, acumulado por data na ordem de processamento.
+- **Origem:** Política do RH, item 2 e Política v4.
+- **Aceite:** Para `CC-COMERCIAL` (teto R$ 150,00/dia), corrida de R$ 120,00 é aprovada integralmente.
 
 ### RN-003 — Limite por Diária de Hospedagem
-- **Regra:** O teto para despesas de `hospedagem` é de R$ 250,00 por diária. O sistema analisa a descrição da despesa buscando menção explícita a multiplicador de diárias (padrões como `"X diarias"`, `"X diárias"`, `"X noites"`). O teto da despesa é `quantidade_diarias * R$ 250,00`. Caso nenhum número de diárias seja identificado, considera-se 1 diária (teto de R$ 250,00).
-- **Origem:** Política do RH, item 3.
-- **Aceite:** Despesa com descrição `"Hotel Rio - 2 diarias"` de R$ 480,00 tem teto de R$ 500,00 (2 * 250) e é reembolsada integralmente em R$ 480,00.
+- **Regra:** O teto para despesas de `hospedagem` é definido pela diária do centro de custo. O sistema analisa a descrição da despesa buscando menção explícita a multiplicador de diárias (padrões como `"X diarias"`, `"X diárias"`, `"X noites"`). O teto da despesa é `quantidade_diarias * limite_diaria`. Caso nenhum número de diárias seja identificado, considera-se 1 diária. Caso o centro de custo vede hospedagem (`limite: 0.00` como em `CC-ENG-PLATAFORMA`), a despesa é recusada integralmente.
+- **Origem:** Política do RH, item 3 e Política v4.
+- **Aceite:** Em `CC-COMERCIAL` (diária R$ 400,00), `"Hotel Londres - 3 noites"` com valor R$ 1.200,00 tem teto de R$ 1.200,00 (3 * 400) e é reembolsada integralmente.
 
 ### RN-004 — Reembolso Parcial de Excedente de Limite
-- **Regra:** Despesas que ultrapassam o limite aplicável da categoria têm o valor até o limite aprovado e o excedente glosado, recebendo status `APROVADO_PARCIAL`.
+- **Regra:** Despesas que ultrapassam o limite aplicável da categoria têm o valor até o limite aprovado e o excedente glosado, recebendo status `APROVADO_PARCIAL` (ou `PENDENTE_APROVACAO` se o valor reembolsado exceder R$ 500,00).
 - **Origem:** Política do RH, item 4.
-- **Aceite:** Despesa elegível de alimentação de R$ 72,50 com limite de R$ 60,00 gera reembolso de R$ 60,00, glosa de R$ 12,50 e status `APROVADO_PARCIAL`.
+- **Aceite:** Despesa elegível com teto de R$ 300,00 e valor solicitado de R$ 340,00 gera reembolso de R$ 300,00 e glosa de R$ 40,00.
 
-### RN-005 — Obrigatoriedade de Nota Fiscal para Valores Acima de R$ 100,00
-- **Regra:** Toda despesa com valor original estritamente superior a R$ 100,00 (`valor > 100.00`) exige `tem_nota_fiscal: true`. Se `tem_nota_fiscal` for `false`, a despesa é **recusada integralmente** (reembolso R$ 0,00 e status `RECUSADO`) por inconformidade fiscal, não havendo reembolso parcial. Despesas com valor igual ou inferior a R$ 100,00 (`valor <= 100.00`) não exigem nota fiscal.
-- **Origem:** Política do RH, item 5.
-- **Aceite:** Despesa de R$ 100,00 com `tem_nota_fiscal: false` é elegível a reembolso. Despesa de R$ 100,01 com `tem_nota_fiscal: false` é recusada com valor reembolsado R$ 0,00.
+### RN-005 — Obrigatoriedade de Nota Fiscal para Valores Acima de R$ 100,00 BRL
+- **Regra:** Toda despesa cujo valor em BRL (após conversão cambial, se aplicável) for estritamente superior a R$ 100,00 (`valor_brl > 100.00`) exige `tem_nota_fiscal: true`. Se `tem_nota_fiscal` for `false`, a despesa é **recusada integralmente** (reembolso R$ 0,00 e status `RECUSADO`) por inconformidade fiscal, não havendo reembolso parcial. Despesas com valor em BRL igual ou inferior a R$ 100,00 (`valor_brl <= 100.00`) não exigem nota fiscal.
+- **Origem:** Política do RH, item 5 e Política v4.
+- **Aceite:** Despesa de `40.00 USD` convertida para R$ 220,00 sem nota fiscal é recusada integralmente com R$ 0,00. Despesa de `14.50 EUR` convertida para R$ 85,26 sem nota fiscal é aceita normalmente.
 
 ### RN-006 — Ampliação de Limites para Colaborador em Viagem
-- **Regra:** Caso o colaborador esteja em viagem a trabalho (`colaborador.em_viagem == true`), todos os limites diários e de diária da política são acrescidos de 50%. Novos tetos: Alimentação: R$ 90,00/dia; Transporte Urbano: R$ 120,00/dia; Hospedagem: R$ 375,00/diária. Se o campo for omitido ou `false`, aplicam-se os limites padrão de 100%.
-- **Origem:** Política do RH, item 6.
-- **Aceite:** Para colaborador com `em_viagem: true`, uma despesa de alimentação de R$ 75,00 é reembolsada integralmente em R$ 75,00 (pois 75 <= 90).
+- **Regra:** Caso o colaborador esteja em viagem a trabalho (`colaborador.em_viagem == true`), todos os limites diários e de diária da política vigente para o seu centro de custo são acrescidos de 50%. Se o campo for omitido ou `false`, aplicam-se os limites padrão de 100%.
+- **Origem:** Política do RH, item 6 e Política v4.
+- **Aceite:** Para colaborador em viagem no `CC-COMERCIAL`, o teto diário de alimentação passa de R$ 90,00 para R$ 135,00.
 
 ### RN-007 — Validação do Período de Competência
 - **Regra:** Toda despesa deve possuir data dentro do intervalo de competência do lote (`periodo.inicio <= despesa.data <= periodo.fim`). Despesas com datas fora desse intervalo são **recusadas integralmente** (reembolso R$ 0,00) com justificativa de despesa fora de competência e não afetam os limites diários.
 - **Origem:** Política do RH, item 7.
-- **Aceite:** Despesa datada de 2026-04-15 em lote de competência 2026-07 (01/07 a 31/07) é recusada com R$ 0,00.
+- **Aceite:** Despesa datada de 2026-04-15 em lote de competência 2026-07 é recusada com R$ 0,00.
 
 ### RN-008 — Tratamento de Duplicatas
 - **Regra:** Uma despesa é caracterizada como duplicata quando possuir a mesma data, mesma categoria (normalizada), mesmo fornecedor, mesma descrição e mesmo valor de uma despesa processada anteriormente no mesmo lote. A primeira ocorrência é processada normalmente; a segunda e posteriores ocorrências são **recusadas integralmente** (reembolso R$ 0,00) com motivo de duplicidade, não consumindo limites.
 - **Origem:** Política do RH, item 8.
-- **Aceite:** `d-006` e `d-007` idênticas (mesma data, fornecedor, valor R$ 54,90). `d-006` é processada; `d-007` é recusada por duplicidade.
+- **Aceite:** `d-006` e `d-007` idênticas: a 1ª é processada; a 2ª é recusada por duplicidade.
 
 ### RN-009 — Categorias Elegíveis e Normalização
-- **Regra:** O campo categoria é padronizado para caracteres minúsculos antes da análise. As únicas categorias cobertas pela política são: `alimentacao`, `transporte_urbano` e `hospedagem`. Despesas com categorias diferentes dessas (ex: `coworking`) são **recusadas integralmente** (reembolso R$ 0,00) com justificativa de categoria não permitida.
-- **Origem:** Política do RH, item 9.
-- **Aceite:** Categoria `"ALIMENTACAO"` é convertida para `"alimentacao"` e processada. Categoria `"coworking"` é recusada com R$ 0,00.
+- **Regra:** O campo categoria é padronizado para caracteres minúsculos antes da análise. As categorias elegíveis são as definidas para o centro de custo do colaborador (com fallback para as categorias da política padrão). Categorias não cobertas (ex: `coworking`, ou `representacao` para colaboradores fora do Comercial) são **recusadas integralmente** (reembolso R$ 0,00) com justificativa de categoria não permitida.
+- **Origem:** Política do RH, item 9 e Política v4.
+- **Aceite:** Categoria `"coworking"` em `e-009` é recusada com R$ 0,00. Categoria `"representacao"` em `CC-COMERCIAL` é aceita com teto de R$ 300,00.
 
 ### RN-010 — Tratamento de Estornos e Valores Negativos
 - **Regra:** Despesas com valores negativos representam estornos/cancelamentos de transações. O valor negativo é abatido do total geral reembolsável e estorna o consumo do teto diário da respectiva categoria e data.
-- **Origem:** Política do RH (omissa nos dados de exemplo).
-- **Aceite:** `d-009` com valor R$ -45,00 em transporte no dia 2026-07-11 reduz o montante reembolsável em R$ 45,00 e restabelece R$ 45,00 de limite de transporte naquela data.
+- **Origem:** Política do RH.
+- **Aceite:** Despesa de R$ -45,00 em transporte reduz o montante reembolsável em R$ 45,00 e restabelece R$ 45,00 de limite daquela categoria na data.
 
 ### RN-011 — Precisão Numérica e Truncamento
-- **Regra:** Valores monetários na entrada que apresentarem mais de 2 casas decimais são **truncados** em duas casas decimais no momento da leitura (sem arredondamento para cima). Todas as operações monetárias subsequentes operam estritamente com duas casas decimais.
-- **Origem:** Fronteira numérica (exemplo `d-011`).
+- **Regra:** Valores monetários na entrada ou resultantes de conversão cambial que apresentarem mais de 2 casas decimais são **truncados** em duas casas decimais no momento da leitura/conversão (sem arredondamento para cima). Todas as operações monetárias subsequentes operam estritamente em centavos inteiros com duas casas decimais.
+- **Origem:** Fronteira numérica.
 - **Aceite:** Valor de entrada `33.333` é truncado e processado como `33.33`.
 
 ### RN-012 — Transparência Integral de Justificativas
-- **Regra:** Toda despesa avaliada deve listar na saída **todos os motivos e regras** que a afetaram, inclusive se houver múltiplas violações concorrentes, viabilizando feedback compreensível sem necessidade de retrabalho ou dúvidas do colaborador.
+- **Regra:** Toda despesa avaliada deve listar na saída **todos os motivos, regras e detalhes de conversão cambial** que a afetaram, inclusive se houver múltiplas violações concorrentes, viabilizando feedback compreensível e auditável.
 - **Origem:** Princípio de transparência auditável do processo.
-- **Aceite:** Um item fora da competência e acima de R$ 100 sem nota fiscal terá ambos os motivos explicitados no campo `justificativas`.
+- **Aceite:** Uma despesa internacional sem nota fiscal conterá a taxa de conversão utilizada e a notificação de recusa por ausência de documento fiscal.
+
+### RN-013 — Conversão de Câmbio de Despesas Internacionais (Política v4)
+- **Regra:** Despesas com moeda diferente de `"BRL"` são convertidas para BRL utilizando a cotação oficial da data da despesa presente na tabela de câmbio (`cambio.json`). Caso a despesa ocorra em data sem cotação publicada (finais de semana ou feriados bancários), utiliza-se a taxa do **último dia útil imediatamente anterior** (convenção PTAX). Caso a moeda informada não possua cotação cadastrada na tabela (ex: `"GBP"`), a despesa é **recusada integralmente** (reembolso R$ 0,00 e status `RECUSADO`) por ausência de cotação oficial. O valor convertido em BRL é truncado em 2 casas decimais.
+- **Origem:** Política v4, Item B.
+- **Aceite:** Despesa de `30.00 EUR` em 2026-07-18 (sábado) utiliza a cotação de 2026-07-17 (EUR = 5.96), resultando em R$ 178,80. Despesa em `GBP` sem cotação é recusada com R$ 0,00.
+
+### RN-014 — Limites Dinâmicos por Centro de Custo e Fallback Aditivo (Política v4)
+- **Regra:** Os limites de cada categoria são carregados dinamicamente a partir do centro de custo do colaborador (`colaborador.centro_custo`):
+  1. Se o centro de custo não estiver cadastrado na tabela de centros de custo, aplicam-se integralmente os limites e categorias da política `"padrao"`.
+  2. Se o centro de custo estiver cadastrado na tabela, aplicam-se seus limites específicos. Se uma categoria do padrão for omitida no centro de custo cadastrado, herda-se o limite do bloco `"padrao"` (fallback aditivo).
+  3. Se uma categoria estiver explicitamente configurada com `limite: 0.00` ou `"nao reembolsavel"` (como `hospedagem` em `CC-ENG-PLATAFORMA`), a despesa é **recusada integralmente** (reembolso R$ 0,00).
+- **Origem:** Política v4, Item A.
+- **Aceite:** Colaborador de `CC-ENG-PLATAFORMA` que lançar hospedagem tem reembolso de R$ 0,00. Colaborador de `CC-COMERCIAL` tem teto de alimentação de R$ 90,00 e teto de representação de R$ 300,00.
+
+### RN-015 — Fila de Aprovação Manual para Valores Elevados (Política v4, Item C)
+- **Regra:** Todo item cujo valor reembolsável calculado ultrapassar R$ 500,00 (`valor_reembolsado > 500.00`) não recebe aprovação automática direta, recebendo o status **`PENDENTE_APROVACAO`**. O valor reembolsável permanece computado no resumo, e uma justificativa explicita que o item foi encaminhado para a fila de aprovação manual do gestor.
+- **Origem:** Política v4, Item C.
+- **Aceite:** Despesa `e-007` de hospedagem em Londres com valor reembolsável de R$ 1.200,00 recebe status `PENDENTE_APROVACAO` e justificativa correspondente.
 
 ---
 
 ## 6. Ambiguidades Identificadas e Decisões
 
-### AMB-001 — Unidade de Aplicação do Limite Diário de Alimentação e Transporte
-- **Texto original do RH:** "1. Alimentação tem limite de R$ 60 por dia." / "2. Transporte urbano tem limite de R$ 80 por dia."
-- **O que não está claro:** O limite é por despesa ou sobre a soma diária? Havendo múltiplos itens no mesmo dia que juntos ultrapassam o teto, como o saldo é alocado?
-- **Decisão:** Limite aplicado sobre o somatório diário da categoria por data civil. O saldo diário é consumido pela ordem em que os lançamentos aparecem no arquivo.
-- **Justificativa:** Reflete o conceito de teto diário corporativo, evitando que múltiplos lançamentos fracionados burlem o limite da política.
-- **Regra afetada:** RN-001, RN-002, RN-004.
+### AMB-001 a AMB-011 (Registradas na Versão 1.0)
+*(Mantidas e ativas conforme especificadas na v1.0: agregação diária na ordem de aparição, R$ 100 exatos sem nota permitido, estornos reabrindo limites, duplicatas recusadas na 2ª ocorrência, extração de diárias de hospedagem por texto).*
 
-### AMB-002 — Fronteira da Exigência de Nota Fiscal (R$ 100,00)
-- **Texto original do RH:** "5. Nota fiscal é obrigatória acima de R$ 100."
-- **O que não está claro:** Despesa de exatamente R$ 100,00 exige nota fiscal ou a obrigatoriedade é estritamente maior que R$ 100,00 (> 100)?
-- **Decisão:** Fronteira estrita (`valor > 100.00`). R$ 100,00 exatos não requer nota fiscal; R$ 100,01 requer nota fiscal.
-- **Justificativa:** Interpretação literal do termo "acima de", comum em políticas de conformidade financeira corporativa.
-- **Regra afetada:** RN-005.
+### AMB-E01 — Câmbio em Dias Não Úteis (Fins de Semana e Feriados)
+- **Texto original do RH:** "A conversão usa a taxa da data da despesa, não a taxa de hoje. As taxas estão em cambio.json." Observação no arquivo: "Cotacoes publicadas apenas em dias uteis bancarios."
+- **O que não está claro:** Em despesas de fins de semana (ex: sábado 2026-07-18 em `e-004`), não há taxa publicada no arquivo. Qual cotação utilizar?
+- **Decisão:** Utilizar a taxa do **último dia útil imediatamente anterior** (sexta-feira, 2026-07-17: EUR = 5.96).
+- **Justificativa:** É a prática padrão regulamentada pelo Banco Central do Brasil (PTAX) e utilizada pelo setor contábil corporativo.
+- **Regra afetada:** RN-013.
 
-### AMB-003 — Efeito da Falta de Nota Fiscal Obrigatória
-- **Texto original do RH:** "4. Despesas acima do limite são reembolsadas parcialmente." vs "5. Nota fiscal é obrigatória acima de R$ 100."
-- **O que não está claro:** Se um item acima de R$ 100 não tiver nota fiscal, ele é recusado integralmente ou recebe reembolso parcial até R$ 100 ou até o teto da categoria?
-- **Decisão:** Recusa integral (R$ 0,00 reembolsado).
-- **Justificativa:** Ausência de comprovação fiscal exigida por lei e compliance invalida o desembolso da empresa por inteiro.
-- **Regra afetada:** RN-005.
+### AMB-E02 — Moeda Estrangeira sem Cotação Oficial
+- **Texto original do RH:** "Colaboradores em viagem internacional lançam despesas em moeda estrangeira... As taxas estão em cambio.json."
+- **O que não está claro:** O arquivo `cambio.json` só contém taxas para USD e EUR. O item `e-006` é em GBP (Londres). Como proceder sem cotação?
+- **Decisão:** **Recusa integral (R$ 0,00)** do item com status `RECUSADO` e justificativa de ausência de taxa cambial disponível.
+- **Justificativa:** O sistema não pode inventar taxas arbitrárias sem respaldo da tabela oficial fornecida pelo financeiro.
+- **Regra afetada:** RN-013.
 
-### AMB-004 — Identificação do Colaborador "Em Viagem"
-- **Texto original do RH:** "6. Colaborador em viagem tem limites ampliados em 50%."
-- **O que não está claro:** O arquivo de entrada padrão não trazia o campo de viagem. Como o sistema identifica essa condição?
-- **Decisão:** Adotada a existência do campo `colaborador.em_viagem` (booleano). Quando o campo estiver ausente, assume-se `false` por padrão.
-- **Justificativa:** Desacopla a informação cadastral da tentativa de adivinhar status de viagem via heurísticas frágeis de nomes de hotéis.
-- **Regra afetada:** RN-006.
+### AMB-E03 — Herança e Fallback de Centros de Custo
+- **Texto original do RH:** "Alguns centros de custo não têm entrada na tabela. Nesse caso, aplica-se a política padrão."
+- **O que não está claro:** Se um centro de custo não existe (ex: `CC-SUPORTE-N2`), herda a política padrão? E se o centro de custo existe mas não menciona uma categoria do padrão (ex: `CC-ADM` sem hospedagem)?
+- **Decisão:** Centro de custo desconhecido usa 100% a política padrão (categorias fora do padrão, como representação, são recusadas). Centros de custo cadastrados utilizam seus limites específicos e herdam do padrão categorias omitidas, exceto quando expressamente configurado com limite zero (`CC-ENG-PLATAFORMA`).
+- **Justificativa:** Garante previsibilidade e continuidade operacional sem desamparar colaboradores de novos departamentos.
+- **Regra afetada:** RN-014.
 
-### AMB-005 — Critério de Duplicatas e Tratamento
-- **Texto original do RH:** "8. Duplicatas devem ser tratadas."
-- **O que não está claro:** O que define uma duplicata e como ela é tratada (recusa uma, recusa ambas ou envia para conferência)?
-- **Decisão:** Duplicata é definida pela coincidência de data, categoria, fornecedor, descrição e valor. A primeira ocorrência é mantida e processada; a segunda é recusada integralmente com motivo "Despesa duplicada".
-- **Justificativa:** Permite que o colaborador receba o pagamento legítimo da primeira despesa sem ser prejudicado por erro de duplicidade de envio.
-- **Regra afetada:** RN-008.
+### AMB-E04 — Avaliação da Nota Fiscal em Despesas Internacionais
+- **Texto original do RH:** "Os limites da política são sempre em BRL. Uma despesa em EUR é convertida antes de ser comparada ao limite."
+- **O que não está claro:** A exigência de nota fiscal (> R$ 100) aplica-se antes ou depois da conversão para BRL?
+- **Decisão:** A exigência fiscal de R$ 100 é avaliada **após a conversão para BRL**.
+- **Justificativa:** Manter a consistência de que todas as fronteiras de conformidade financeira da empresa operam na moeda base nacional (BRL).
+- **Regra afetada:** RN-005, RN-013.
 
-### AMB-006 — Quantidade de Diárias de Hospedagem
-- **Texto original do RH:** "3. Hospedagem tem limite de R$ 250 por diária."
-- **O que não está claro:** A entrada traz lançamentos únicos com valores altos e textos como "Hotel Rio - 2 diarias". Como calcular o teto sem campo numérico de diárias?
-- **Decisão:** O sistema extrai o multiplicador de diárias da descrição por expressões regulares (ex: `"X diarias"`, `"X diárias"`, `"X noites"`). O teto passa a ser `diarias * 250`. Se não houver indicador, assume 1 diária.
-- **Justificativa:** Garante aderência à realidade dos lançamentos em que notas de hotel cobrem múltiplas noites sob uma única cobrança.
-- **Regra afetada:** RN-003.
+### AMB-E05 — Leitura Externa da Política e Câmbio pela CLI
+- **Texto original do RH:** "O motor precisa ler a política de fora, não de dentro do código. A tabela vigente está em politica-v4.json. As taxas estão em cambio.json."
+- **O que não está claro:** Como receber esses arquivos sem quebrar a assinatura da CLI definida no início do desafio (`<cmd> calcular --input ... --output ...`)?
+- **Decisão:** A CLI aceita opções configuráveis com valores padrão (`--politica` default `exemplos/envelope/politica-v4.json` e `--cambio` default `exemplos/envelope/cambio.json`).
+- **Justificativa:** Permite total flexibilidade para rodar com arquivos externos mantendo compatibilidade regressiva completa.
+- **Regra afetada:** Interface CLI.
 
-### AMB-007 — Tratamento de Valores Negativos (Estornos)
-- **Texto original do RH:** A política é completamente omissa sobre valores negativos.
-- **O que não está claro:** Como valores negativos de estorno de corrida ou compras afetam os tetos diários e o total a pagar?
-- **Decisão:** O valor negativo é abatido do montante total a reembolsar e estorna proporcionalmente o consumo do limite diário daquela categoria na respectiva data.
-- **Justificativa:** Mantém a exatidão financeira entre a despesa líquida real do colaborador e o saldo devido pela empresa.
-- **Regra afetada:** RN-010.
-
-### AMB-008 — Validação e Alcance da Competência
-- **Texto original do RH:** "7. Despesas devem ser lançadas dentro do período de competência."
-- **O que não está claro:** Despesas com atraso de meses anteriores podem ser toleradas ou são sumariamente rejeitadas?
-- **Decisão:** Rejeição integral (R$ 0,00) de qualquer despesa cuja data seja anterior a `periodo.inicio` ou posterior a `periodo.fim`.
-- **Justificativa:** Fechamento contábil e fiscal corporativo exige estrita competência mensal para dedução tributária.
-- **Regra afetada:** RN-007.
-
-### AMB-009 — Tratamento de Casas Decimais Excessivas
-- **Texto original do RH:** Omissa quanto à precisão decimal (ex: valor `33.333`).
-- **O que não está claro:** Arredondar para cima, arredondar para o par mais próximo ou truncar?
-- **Decisão:** Truncamento estrito em 2 casas decimais na ingestão do dado.
-- **Justificativa:** Evita inflar valores a pagar por dízimas ou inconsistências de sistemas de ponto de venda.
-- **Regra afetada:** RN-011.
-
-### AMB-010 — Padronização de Caixa de Texto em Categorias
-- **Texto original do RH:** Omissa quanto à sensibilidade de maiúsculas/minúsculas.
-- **O que não está claro:** `"ALIMENTACAO"` em maiúsculas deve ser recusada por não casar com `"alimentacao"`?
-- **Decisão:** Normalização prévia para minúsculas antes da validação.
-- **Justificativa:** Evita recusas indevidas por variação estilística de digitação ou divergência entre sistemas emissores.
-- **Regra afetada:** RN-009.
-
-### AMB-011 — Concorrência de Violações e Relato de Motivos
-- **Texto original do RH:** Omissa sobre ordem de precedência de erros.
-- **O que não está claro:** Se um item violar a competência e não tiver nota fiscal, qual justificativa é emitida?
-- **Decisão:** Todos os motivos de recusa e apontamentos são avaliados e retornados cumulativamente na lista `justificativas`.
-- **Justificativa:** Oferece clareza total ao colaborador em uma única iteração, dispensando idas e vindas de suporte.
-- **Regra afetada:** RN-012.
+### AMB-E06 — Fila de Aprovação Manual para Valores Elevados
+- **Texto original do RH:** "C. (Opcional) Fila de aprovação manual. Itens cujo valor reembolsável passe de R$ 500 não são mais aprovados automaticamente. Eles entram em estado de pendência..."
+- **O que não está claro:** Como representar esse estado no schema de saída sem invalidar os totalizadores financeiros?
+- **Decisão:** Introdução do status `PENDENTE_APROVACAO`. O valor reembolsável é apurado normalmente e incluído no montante reembolsável total, com sinalização explícita no item e no resumo.
+- **Justificativa:** Atendimento integral à necessidade de controle de alçada executiva para despesas de maior vulto.
+- **Regra afetada:** RN-015.
 
 ---
 
@@ -302,58 +237,51 @@ Arquivo JSON estruturado contendo o resumo consolidado do lote e o detalhamento 
 
 | Caso | Entrada | Comportamento Esperado | Regra |
 |---|---|---|---|
-| Múltiplas despesas de alimentação no dia | 2 despesas no mesmo dia de R$ 40 cada (sem viagem) | 1ª reembolsa R$ 40; 2ª reembolsa R$ 20 (atinge teto de R$ 60) e glosa R$ 20 | RN-001 |
-| Despesa no limite exato de nota fiscal | Valor R$ 100,00, sem nota fiscal | Aprovada para análise de limite normal; não é recusada por falta de nota | RN-005 |
-| Despesa R$ 0,01 acima do limite de nota fiscal | Valor R$ 100,01, sem nota fiscal | Recusada integralmente (reembolso R$ 0,00) | RN-005 |
-| Categoria inválida/desconhecida | Categoria `"coworking"` | Recusada integralmente (reembolso R$ 0,00) | RN-009 |
-| Despesa idêntica em data igual | 2 despesas de R$ 54,90 no Bistro Central no mesmo dia | 1ª processada; 2ª recusada com status `RECUSADO` por duplicidade | RN-008 |
-| Despesa fora da competência | Data 2026-04-15 em competência de 2026-07 | Recusada integralmente (reembolso R$ 0,00) | RN-007 |
-| Despesa com 3 casas decimais | Valor `33.333` | Truncado para `33.33` antes do cálculo | RN-011 |
-| Estorno de despesa | Valor `-45.00` | Subtrai R$ 45 do total e restabelece limite diário da data | RN-010 |
-| Hospedagem com múltiplas diárias | Valor R$ 480,00, descrição `"Hotel Rio - 2 diarias"` | Teto calculado: R$ 500. Reembolsa integralmente R$ 480 | RN-003 |
-| Despesa em fim de semana / plantão | Alimentação em sábado de plantão dentro da competência | Avaliada sob as regras e limites diários normais de alimentação | RN-001 |
-| Colaborador em viagem com alimentação | `em_viagem: true`, valor R$ 85,00 em alimentação | Reembolsado integralmente (teto ampliado de R$ 90) | RN-006 |
+| Despesa internacional em fim de semana | `30.00 EUR` em 2026-07-18 (sábado) | Converte usando taxa de 2026-07-17 (5.96) = R$ 178,80 | RN-013 |
+| Despesa em moeda não cotada | `55.00 GBP` em 2026-07-21 | Recusada integralmente (R$ 0,00) por ausência de cotação | RN-013 |
+| Despesa em USD sem nota > R$ 100 BRL | `40.00 USD` em 2026-07-20 (taxa 5.50 = R$ 220,00) | Recusada integralmente (R$ 0,00) por falta de nota fiscal | RN-005, RN-013 |
+| Despesa em EUR sem nota <= R$ 100 BRL | `14.50 EUR` em 2026-07-15 (taxa 5.88 = R$ 85,26) | Aprovada para análise de limite normal; nota fiscal não exigida | RN-005, RN-013 |
+| Hospedagem em CC-ENG-PLATAFORMA | Hospedagem com nota fiscal em colaborador de CC-ENG-PLATAFORMA | Recusada integralmente (R$ 0,00), limite 0.00 não reembolsável | RN-014 |
+| Representação em CC-COMERCIAL | `representacao` com nota, R$ 340,00 | Teto de R$ 300,00: reembolsa R$ 300,00 e glosa R$ 40,00 | RN-004, RN-014 |
+| Representação em CC Desconhecido | `representacao` em colaborador de `CC-SUPORTE-N2` | Recusada integralmente (R$ 0,00) por categoria fora do padrão | RN-009, RN-014 |
+| Valor reembolsável superior a R$ 500 | Hospedagem aprovada de R$ 1.200,00 | Reembolso R$ 1.200,00 com status `PENDENTE_APROVACAO` | RN-015 |
+| Categoria não permitida | `coworking` em `CC-COMERCIAL` | Recusada integralmente (R$ 0,00) | RN-009, RN-014 |
 
 ---
 
-## 8. Ordem de Aplicação das Regras (Pipeline de Processamento)
+## 8. Ordem de Aplicação das Regras (Pipeline de Processamento v2.0)
 
-Para cada despesa da lista, o pipeline segue rigorosamente a seguinte sequência:
+Para cada despesa da lista, o pipeline segue rigorosamente a sequência:
 
 ```
-[Normalização e Truncamento]
-   ↓ (converte categoria para minúsculo, trunca valor em 2 decimais)
+[Normalização e Truncamento de Entrada]
+   ↓
+[Conversão Cambial (RN-013)]
+   ↓ (se moeda != BRL, busca cotação no dia útil; se não existir cotação, marca recusa)
 [Validação de Competência (RN-007)]
    ↓ (se fora da competência, marca recusa; não consome limites)
-[Validação de Categoria (RN-009)]
-   ↓ (se categoria inválida, marca recusa; não consome limites)
+[Validação de Categoria e Centro de Custo (RN-009, RN-014)]
+   ↓ (verifica se categoria é permitida no CC ou no padrão; checa limite 0.00)
 [Verificação de Duplicidade (RN-008)]
-   ↓ (se coincidir com item anterior válido, marca recusa; não consome limites)
-[Validação Fiscal (RN-005)]
-   ↓ (se valor > 100 e tem_nota_fiscal for false, marca recusa; não consome limites)
-[Aplicação de Limites e Tetos (RN-001, RN-002, RN-003, RN-004, RN-006, RN-010)]
-   ↓ (se for estorno, abate; se for despesa positiva, abate do saldo disponível da categoria no dia)
-[Consolidação de Justificativas e Totais (RN-012)]
+   ↓ (se coincidir com item anterior, marca recusa; não consome limites)
+[Validação Fiscal em BRL (RN-005)]
+   ↓ (se valor_brl > 100 e tem_nota_fiscal for false, marca recusa; não consome limites)
+[Aplicação de Limites por Centro de Custo e Viagem (RN-001..004, RN-006, RN-010)]
+   ↓ (aplica tetos diários do CC com acréscimo de 50% se em_viagem for true; rebate estornos)
+[Classificação de Fila de Aprovação (RN-015)]
+   ↓ (se valor_reembolsado > 500.00, define status como PENDENTE_APROVACAO)
+[Consolidação de Justificativas e Totais do Resumo (RN-012)]
 ```
 
 ---
 
-## 9. Critérios de Aceite
+## 9. Critérios de Aceite v2.0
 
 O sistema está completo e pronto quando:
 
-- [ ] Lê arquivo JSON via linha de comando `--input <caminho>` e gera JSON em `--output <caminho>`.
-- [ ] Processa com exatidão o arquivo de teste `exemplos/despesas-exemplo.json` gerando os valores totais e detalhados esperados.
-- [ ] Glosa excedentes de limites diários e diárias conforme as regras RN-001 a RN-004.
-- [ ] Recusa com R$ 0,00 qualquer despesa > R$ 100 sem nota fiscal (RN-005).
-- [ ] Aplica acréscimo de 50% em todos os limites quando `colaborador.em_viagem == true` (RN-006).
-- [ ] Recusa itens fora da competência (RN-007) e duplicatas (RN-008).
-- [ ] Trunca valores monetários na entrada em 2 casas decimais (RN-011).
-- [ ] Todos os testes unitários e de integração cobrindo cada RN e caso de borda executam e passam com 100% de sucesso.
-
----
-
-## 10. O que Fica em Aberto
-
-1. **Descrição de hospedagem sem padrão identificável:** Se o colaborador lançar uma hospedagem de 5 dias com valor alto e descrição vaga como `"Estadia em conferência"`, o sistema assumirá 1 diária (R$ 250,00) e glosará o restante. Decisão provisória: manter esse comportamento para resguardar a empresa e documentar na justificativa a necessidade de especificar o número de diárias.
-2. **Estorno de categoria não lançada anteriormente:** Se houver um estorno sem despesa prévia correspondente no mesmo arquivo, o sistema abate do total geral e mantém o limite diário da data intacto.
+- [ ] Lê arquivo JSON de despesas, arquivo externo de política (`politica-v4.json`) e arquivo de câmbio (`cambio.json`).
+- [ ] Processa com exatidão tanto os arquivos v3 (`despesas-exemplo.json`) quanto os novos cenários da v4 (`despesas-envelope.json` e `despesas-envelope-cc-desconhecido.json`).
+- [ ] Converte moedas estrangeiras aplicando taxa da data ou do último dia útil anterior, recusando moedas não cotadas.
+- [ ] Aplica os limites e restrições específicos por centro de custo com fallback para a política padrão.
+- [ ] Atribui status `PENDENTE_APROVACAO` para lançamentos cujo reembolso exceda R$ 500,00.
+- [ ] Todos os testes unitários, testes de casos de borda e testes de integração executam com 100% de sucesso.
