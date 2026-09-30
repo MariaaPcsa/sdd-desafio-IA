@@ -94,10 +94,10 @@
 
 ## Fase 5 — Envelope (Política v4, Centros de Custo, Câmbio e Aprovação Manual)
 
-- [ ] **T-015** — Implementar carregamento e resolução dinâmica de limites por Centro de Custo (`RN-014`)
+- [x] **T-015** — Implementar carregamento e resolução dinâmica de limites por Centro de Custo (`RN-014`)
   - **Atende:** RN-014, AMB-E03, DT-002
   - **Aceite:** Testes de resolução de limites para `CC-COMERCIAL`, `CC-ENG-PLATAFORMA` (hospedagem 0) e centro desconhecido com fallback padrão passam.
-  - **Commit:**
+  - **Commit:** `feat(T-015)`
 
 - [ ] **T-016** — Implementar módulo de conversão cambial por data com PTAX do dia útil anterior (`RN-013`)
   - **Atende:** RN-013, AMB-E01, AMB-E02, DT-001

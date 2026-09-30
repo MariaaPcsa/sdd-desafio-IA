@@ -83,6 +83,10 @@ export function processarLote(
       justificativas.push(
         `Categoria '${item.categoria}' não é reembolsável para o centro de custo '${colaborador.centro_custo}'.`
       );
+    } else if (regraCategoria.limite === 0) {
+      justificativas.push(
+        `Categoria '${item.categoria}' não é reembolsável para o centro de custo '${colaborador.centro_custo}' (limite zero).`
+      );
     }
 
     // RN-008: Detecção de duplicatas
