@@ -25,6 +25,22 @@ export function validarCompetencia(dataDespesa: string, inicio: string, fim: str
 }
 
 /**
+ * RN-003, DT-003: Extrai o multiplicador de diárias da descrição de hospedagem.
+ * Padrões reconhecidos: "2 diarias", "3 diárias", "4 noites", etc.
+ * Caso nenhum padrão numérico seja encontrado, assume 1 diária.
+ */
+export function extrairQuantidadeDiarias(descricao: string): number {
+  const match = descricao.match(/(\d+)\s*(?:di[aá]rias?|noites?)/i);
+  if (match) {
+    const qtd = parseInt(match[1], 10);
+    if (!isNaN(qtd) && qtd > 0) {
+      return qtd;
+    }
+  }
+  return 1;
+}
+
+/**
  * Processa um lote completo de despesas aplicando as regras de negócio.
  */
 export function processarLote(
@@ -175,7 +191,78 @@ export function processarLote(
       }
     }
 
-    // Caso não seja diária (ex: hospedagem), segue para aprovação inicial
+    // RN-003: Hospedagem (periodicidade diária com multiplicador por diárias)
+    if (regraCategoria.periodicidade === 'diaria') {
+      if (regraCategoria.limite === 0) {
+        itensRecusados++;
+        totalGlosadoCentavos += valorSolicitadoCentavos;
+        justificativas.push(
+          `Hospedagem não é reembolsável para o centro de custo '${colaborador.centro_custo}'. Lançamento recusado.`
+        );
+        resultados.push({
+          id: item.id,
+          data: item.data,
+          categoria: categoriaNorm,
+          valor_solicitado: fromCents(valorSolicitadoCentavos),
+          valor_reembolsado: 0.0,
+          valor_glosado: fromCents(valorSolicitadoCentavos),
+          status: 'RECUSADO',
+          justificativas,
+        });
+        continue;
+      }
+
+      const diarias = extrairQuantidadeDiarias(item.descricao);
+      const tetoHospedagemCentavos = calcularLimiteEfetivoCentavos(
+        regraCategoria,
+        emViagem,
+        politica,
+        diarias
+      );
+
+      if (valorSolicitadoCentavos <= tetoHospedagemCentavos) {
+        itensAprovados++;
+        totalReembolsavelCentavos += valorSolicitadoCentavos;
+        justificativas.push(
+          `Hospedagem aprovada dentro do limite de ${diarias} diária(s) (teto: R$ ${fromCents(tetoHospedagemCentavos).toFixed(2)}).`
+        );
+        resultados.push({
+          id: item.id,
+          data: item.data,
+          categoria: categoriaNorm,
+          valor_solicitado: fromCents(valorSolicitadoCentavos),
+          valor_reembolsado: fromCents(valorSolicitadoCentavos),
+          valor_glosado: 0.0,
+          status: 'APROVADO',
+          justificativas,
+        });
+        continue;
+      } else {
+        itensAprovadosParcialmente++;
+        const valorReembolsadoCentavos = tetoHospedagemCentavos;
+        const valorGlosadoCentavos = valorSolicitadoCentavos - tetoHospedagemCentavos;
+
+        totalReembolsavelCentavos += valorReembolsadoCentavos;
+        totalGlosadoCentavos += valorGlosadoCentavos;
+
+        justificativas.push(
+          `Hospedagem atingiu o limite de ${diarias} diária(s) (teto: R$ ${fromCents(tetoHospedagemCentavos).toFixed(2)}). Excedente de R$ ${fromCents(valorGlosadoCentavos).toFixed(2)} glosado.`
+        );
+        resultados.push({
+          id: item.id,
+          data: item.data,
+          categoria: categoriaNorm,
+          valor_solicitado: fromCents(valorSolicitadoCentavos),
+          valor_reembolsado: fromCents(valorReembolsadoCentavos),
+          valor_glosado: fromCents(valorGlosadoCentavos),
+          status: 'APROVADO_PARCIAL',
+          justificativas,
+        });
+        continue;
+      }
+    }
+
+    // Caso surja outra periodicidade no futuro
     itensAprovados++;
     totalReembolsavelCentavos += valorSolicitadoCentavos;
     resultados.push({

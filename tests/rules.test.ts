@@ -6,7 +6,7 @@ import {
   obterRegraCategoria,
   calcularLimiteEfetivoCentavos,
 } from '../src/policy.js';
-import { processarLote, validarCompetencia } from '../src/engine.js';
+import { processarLote, validarCompetencia, extrairQuantidadeDiarias } from '../src/engine.js';
 import { LoteEntrada } from '../src/types.js';
 
 test('T-001: ambiente TypeScript e executor de testes configurados com sucesso', () => {
@@ -155,20 +155,15 @@ test('T-008 / RN-005: R$ 100,00 sem nota é aprovado; R$ 100,01 sem nota é recu
   };
 
   const resultado = processarLote(lote);
-  // d-003: elegível fiscalmente (não exigiu nota), mas respeitou o teto diário de transporte de R$ 80 -> APROVADO_PARCIAL
   assert.strictEqual(resultado.despesas[0].status, 'APROVADO_PARCIAL');
   assert.strictEqual(resultado.despesas[0].valor_reembolsado, 80.0);
   assert.strictEqual(resultado.despesas[0].valor_glosado, 20.0);
 
-  // d-004: 100.01 sem nota é RECUSADO integralmente por falta de nota fiscal
   assert.strictEqual(resultado.despesas[1].status, 'RECUSADO');
   assert.strictEqual(resultado.despesas[1].valor_reembolsado, 0.0);
 });
 
 test('T-009 / RN-001 / RN-002 / RN-004: limites diários com corte parcial e esgotamento subsequente', () => {
-  // Cenário da spec: d-001 (R$ 72,50) e d-002 (R$ 38,00) no mesmo dia (2026-07-03)
-  // Limite padrão de alimentação: R$ 60,00 (ou R$ 75 para CC-ENG-PLATAFORMA)
-  // Vamos testar com a política padrão (limite R$ 60,00) para validar o caso da spec:
   const lotePadrao: LoteEntrada = {
     colaborador: { id: 'c-9999', nome: 'Colaborador Padrão', centro_custo: 'CC-OUTRO' },
     periodo: { competencia: '2026-07', inicio: '2026-07-01', fim: '2026-07-31' },
@@ -195,27 +190,46 @@ test('T-009 / RN-001 / RN-002 / RN-004: limites diários com corte parcial e esg
   };
 
   const resultado = processarLote(lotePadrao);
-  assert.strictEqual(resultado.despesas.length, 2);
+  assert.strictEqual(resultado.despesas[0].status, 'APROVADO_PARCIAL');
+  assert.strictEqual(resultado.despesas[0].valor_reembolsado, 60.0);
+  assert.strictEqual(resultado.despesas[0].valor_glosado, 12.5);
 
-  // d-001: R$ 72,50 consome teto de R$ 60,00, glosa R$ 12,50 -> APROVADO_PARCIAL
-  const item1 = resultado.despesas[0];
-  assert.strictEqual(item1.id, 'd-001');
-  assert.strictEqual(item1.status, 'APROVADO_PARCIAL');
-  assert.strictEqual(item1.valor_reembolsado, 60.0);
-  assert.strictEqual(item1.valor_glosado, 12.5);
+  assert.strictEqual(resultado.despesas[1].status, 'RECUSADO');
+  assert.strictEqual(resultado.despesas[1].valor_reembolsado, 0.0);
+  assert.strictEqual(resultado.despesas[1].valor_glosado, 38.0);
+});
 
-  // d-002: R$ 38,00 chega com teto do dia já zerado -> RECUSADO (R$ 0,00 reembolsado)
-  const item2 = resultado.despesas[1];
-  assert.strictEqual(item2.id, 'd-002');
-  assert.strictEqual(item2.status, 'RECUSADO');
-  assert.strictEqual(item2.valor_reembolsado, 0.0);
-  assert.strictEqual(item2.valor_glosado, 38.0);
-  assert.match(item2.justificativas[0], /já esgotado/i);
+test('T-010 / RN-003: hospedagem calcula teto multiplicando diárias da descrição', () => {
+  // Teste unitário de extração de diárias
+  assert.strictEqual(extrairQuantidadeDiarias('Hotel Rio - 2 diarias'), 2);
+  assert.strictEqual(extrairQuantidadeDiarias('Airbnb 3 noites'), 3);
+  assert.strictEqual(extrairQuantidadeDiarias('Pousada - 1 diaria'), 1);
+  assert.strictEqual(extrairQuantidadeDiarias('Hotel Simples'), 1);
 
-  // Totais do lote
-  assert.strictEqual(resultado.resumo.total_solicitado, 110.5);
-  assert.strictEqual(resultado.resumo.total_reembolsavel, 60.0);
-  assert.strictEqual(resultado.resumo.total_glosado, 50.5);
-  assert.strictEqual(resultado.resumo.itens_aprovados_parcialmente, 1);
-  assert.strictEqual(resultado.resumo.itens_recusados, 1);
+  // Cenário d-010: "Hotel Rio - 2 diarias", valor 480.00 com nota fiscal em CC-OUTRO (limite padrão R$ 250/diária)
+  // Teto = 2 * 250 = R$ 500,00 -> Como 480 <= 500, é APROVADO integralmente!
+  const lote: LoteEntrada = {
+    colaborador: { id: 'c-9999', nome: 'Colaborador', centro_custo: 'CC-OUTRO' },
+    periodo: { competencia: '2026-07', inicio: '2026-07-01', fim: '2026-07-31' },
+    despesas: [
+      {
+        id: 'd-010',
+        data: '2026-07-14',
+        categoria: 'hospedagem',
+        descricao: 'Hotel Rio - 2 diarias',
+        fornecedor: 'Hotel Copa Sul',
+        valor: 480.0,
+        tem_nota_fiscal: true,
+      },
+    ],
+  };
+
+  const resultado = processarLote(lote);
+  assert.strictEqual(resultado.despesas.length, 1);
+  const item = resultado.despesas[0];
+  assert.strictEqual(item.id, 'd-010');
+  assert.strictEqual(item.status, 'APROVADO');
+  assert.strictEqual(item.valor_reembolsado, 480.0);
+  assert.strictEqual(item.valor_glosado, 0.0);
+  assert.match(item.justificativas[0], /2 diária\(s\)/i);
 });

@@ -57,10 +57,10 @@
   - **Aceite:** Testes de teto diário de alimentação e transporte com glosa parcial e zeramento de despesa subsequente passam.
   - **Commit:** `feat(T-009)`
 
-- [ ] **T-010** — Implementar extração de multiplicador de diárias e limites de Hospedagem
+- [x] **T-010** — Implementar extração de multiplicador de diárias e limites de Hospedagem
   - **Atende:** RN-003, AMB-006, DT-003
   - **Aceite:** Teste `test('RN-003: hospedagem multiplica teto por diárias na descrição')` passa.
-  - **Commit:**
+  - **Commit:** `feat(T-010)`
 
 - [ ] **T-011** — Implementar tratamento de estornos e valores negativos
   - **Atende:** RN-010, AMB-007, DT-004
