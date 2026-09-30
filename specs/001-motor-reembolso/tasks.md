@@ -62,10 +62,10 @@
   - **Aceite:** Teste `test('RN-003: hospedagem multiplica teto por diárias na descrição')` passa.
   - **Commit:** `feat(T-010)`
 
-- [ ] **T-011** — Implementar tratamento de estornos e valores negativos
+- [x] **T-011** — Implementar tratamento de estornos e valores negativos
   - **Atende:** RN-010, AMB-007, DT-004
   - **Aceite:** Teste `test('RN-010: estorno negativo subtrai do total e restabelece limite diário')` passa.
-  - **Commit:**
+  - **Commit:** `feat(T-011)`
 
 - [ ] **T-012** — Implementar ampliação de limites para colaborador em viagem e consolidação de resumo
   - **Atende:** RN-006, RN-012, AMB-004, AMB-011

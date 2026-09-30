@@ -122,6 +122,33 @@ export function processarLote(
 
     const emViagem = colaborador.em_viagem === true;
 
+    // RN-010: Tratamento de Estornos e Valores Negativos
+    if (valorSolicitadoCentavos < 0) {
+      itensAprovados++;
+      totalReembolsavelCentavos += valorSolicitadoCentavos;
+
+      if (regraCategoria.periodicidade === 'dia') {
+        const keyDiaria = `${item.data}|${categoriaNorm}`;
+        const consumidoAteAgora = consumoDiarioMap.get(keyDiaria) ?? 0;
+        consumoDiarioMap.set(keyDiaria, Math.max(0, consumidoAteAgora + valorSolicitadoCentavos));
+      }
+
+      justificativas.push(
+        'Estorno/cancelamento de despesa processado com sucesso. Valor abatido do reembolso e saldo diário restabelecido.'
+      );
+      resultados.push({
+        id: item.id,
+        data: item.data,
+        categoria: categoriaNorm,
+        valor_solicitado: fromCents(valorSolicitadoCentavos),
+        valor_reembolsado: fromCents(valorSolicitadoCentavos),
+        valor_glosado: 0.0,
+        status: 'APROVADO',
+        justificativas,
+      });
+      continue;
+    }
+
     // RN-001, RN-002, RN-004: Limites de periodicidade diária (alimentação, transporte, representação)
     if (regraCategoria.periodicidade === 'dia') {
       const keyDiaria = `${item.data}|${categoriaNorm}`;

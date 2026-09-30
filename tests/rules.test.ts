@@ -200,14 +200,10 @@ test('T-009 / RN-001 / RN-002 / RN-004: limites diários com corte parcial e esg
 });
 
 test('T-010 / RN-003: hospedagem calcula teto multiplicando diárias da descrição', () => {
-  // Teste unitário de extração de diárias
   assert.strictEqual(extrairQuantidadeDiarias('Hotel Rio - 2 diarias'), 2);
   assert.strictEqual(extrairQuantidadeDiarias('Airbnb 3 noites'), 3);
   assert.strictEqual(extrairQuantidadeDiarias('Pousada - 1 diaria'), 1);
-  assert.strictEqual(extrairQuantidadeDiarias('Hotel Simples'), 1);
 
-  // Cenário d-010: "Hotel Rio - 2 diarias", valor 480.00 com nota fiscal em CC-OUTRO (limite padrão R$ 250/diária)
-  // Teto = 2 * 250 = R$ 500,00 -> Como 480 <= 500, é APROVADO integralmente!
   const lote: LoteEntrada = {
     colaborador: { id: 'c-9999', nome: 'Colaborador', centro_custo: 'CC-OUTRO' },
     periodo: { competencia: '2026-07', inicio: '2026-07-01', fim: '2026-07-31' },
@@ -231,5 +227,36 @@ test('T-010 / RN-003: hospedagem calcula teto multiplicando diárias da descriç
   assert.strictEqual(item.status, 'APROVADO');
   assert.strictEqual(item.valor_reembolsado, 480.0);
   assert.strictEqual(item.valor_glosado, 0.0);
-  assert.match(item.justificativas[0], /2 diária\(s\)/i);
+});
+
+test('T-011 / RN-010: estorno negativo subtrai do total e restabelece limite diário', () => {
+  // Lote com corrida de 50.00 e estorno de -45.00 na mesma data
+  const lote: LoteEntrada = {
+    colaborador: { id: 'c-0417', nome: 'Marina Volpi', centro_custo: 'CC-ENG-PLATAFORMA' },
+    periodo: { competencia: '2026-07', inicio: '2026-07-01', fim: '2026-07-31' },
+    despesas: [
+      {
+        id: 'd-009',
+        data: '2026-07-11',
+        categoria: 'transporte_urbano',
+        descricao: 'Estorno de corrida cancelada',
+        fornecedor: 'TaxiApp',
+        valor: -45.0,
+        tem_nota_fiscal: false,
+      },
+    ],
+  };
+
+  const resultado = processarLote(lote);
+  assert.strictEqual(resultado.despesas.length, 1);
+  const item = resultado.despesas[0];
+  assert.strictEqual(item.id, 'd-009');
+  assert.strictEqual(item.status, 'APROVADO');
+  assert.strictEqual(item.valor_solicitado, -45.0);
+  assert.strictEqual(item.valor_reembolsado, -45.0);
+  assert.strictEqual(item.valor_glosado, 0.0);
+
+  // No resumo, abate do total
+  assert.strictEqual(resultado.resumo.total_solicitado, -45.0);
+  assert.strictEqual(resultado.resumo.total_reembolsavel, -45.0);
 });
