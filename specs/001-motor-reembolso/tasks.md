@@ -47,10 +47,10 @@
   - **Aceite:** Teste `test('RN-008: despesa duplicada é recusada integralmente e não consome limite')` passa.
   - **Commit:** `feat(T-007)`
 
-- [ ] **T-008** — Implementar conformidade fiscal e fronteira de nota fiscal (R$ 100,00)
+- [x] **T-008** — Implementar conformidade fiscal e fronteira de nota fiscal (R$ 100,00)
   - **Atende:** RN-005, AMB-002, AMB-003
   - **Aceite:** Testes `test('RN-005: R$ 100,00 sem nota é aprovado')` e `test('RN-005: R$ 100,01 sem nota é recusado com R$ 0,00')` passam.
-  - **Commit:**
+  - **Commit:** `feat(T-008)`
 
 - [ ] **T-009** — Implementar agregador diário e limites para Alimentação e Transporte com corte de excedente
   - **Atende:** RN-001, RN-002, RN-004, AMB-001

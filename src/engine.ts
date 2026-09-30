@@ -78,7 +78,15 @@ export function processarLote(
       despesasProcessadasSet.add(fingerprintDuplicata);
     }
 
-    // Se houve violações impeditivas até aqui (competência, categoria ou duplicata)
+    // RN-005: Conformidade fiscal (nota fiscal obrigatória acima de R$ 100,00)
+    const limiteNotaCentavos = toCents(politica.nota_fiscal_obrigatoria_acima_de ?? 100.0);
+    if (valorSolicitadoCentavos > limiteNotaCentavos && !item.tem_nota_fiscal) {
+      justificativas.push(
+        `Nota fiscal obrigatória para despesas com valor superior a ${fromCents(limiteNotaCentavos).toFixed(2)}. Lançamento recusado por inconformidade fiscal.`
+      );
+    }
+
+    // Se houve violações impeditivas até aqui (competência, categoria, duplicata ou nota fiscal)
     if (justificativas.length > 0) {
       itensRecusados++;
       totalGlosadoCentavos += valorSolicitadoCentavos;

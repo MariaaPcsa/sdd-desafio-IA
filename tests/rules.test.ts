@@ -124,16 +124,46 @@ test('T-007 / RN-008: despesa duplicada é recusada integralmente e não consome
   };
 
   const resultado = processarLote(lote);
+  assert.strictEqual(resultado.despesas[0].status, 'APROVADO');
+  assert.strictEqual(resultado.despesas[1].status, 'RECUSADO');
+});
+
+test('T-008 / RN-005: R$ 100,00 sem nota é aprovado; R$ 100,01 sem nota é recusado integralmente', () => {
+  const lote: LoteEntrada = {
+    colaborador: { id: 'c-0417', nome: 'Marina Volpi', centro_custo: 'CC-ENG-PLATAFORMA' },
+    periodo: { competencia: '2026-07', inicio: '2026-07-01', fim: '2026-07-31' },
+    despesas: [
+      {
+        id: 'd-003',
+        data: '2026-07-06',
+        categoria: 'transporte_urbano',
+        descricao: 'Corrida aeroporto',
+        fornecedor: 'TaxiApp',
+        valor: 100.0,
+        tem_nota_fiscal: false, // R$ 100,00 exatos sem nota -> permitido
+      },
+      {
+        id: 'd-004',
+        data: '2026-07-06',
+        categoria: 'transporte_urbano',
+        descricao: 'Corrida hotel',
+        fornecedor: 'TaxiApp',
+        valor: 100.01,
+        tem_nota_fiscal: false, // R$ 100,01 sem nota -> estritamente maior que 100 -> recusado
+      },
+    ],
+  };
+
+  const resultado = processarLote(lote);
   assert.strictEqual(resultado.despesas.length, 2);
 
-  // d-006: 1ª ocorrência aprovada
-  assert.strictEqual(resultado.despesas[0].id, 'd-006');
+  // d-003: 100.00 sem nota é aprovado para análise (não é barrado pela fiscal)
+  assert.strictEqual(resultado.despesas[0].id, 'd-003');
   assert.strictEqual(resultado.despesas[0].status, 'APROVADO');
-  assert.strictEqual(resultado.despesas[0].valor_reembolsado, 54.9);
 
-  // d-007: 2ª ocorrência recusada por duplicidade
-  assert.strictEqual(resultado.despesas[1].id, 'd-007');
+  // d-004: 100.01 sem nota é RECUSADO com R$ 0,00
+  assert.strictEqual(resultado.despesas[1].id, 'd-004');
   assert.strictEqual(resultado.despesas[1].status, 'RECUSADO');
   assert.strictEqual(resultado.despesas[1].valor_reembolsado, 0.0);
-  assert.match(resultado.despesas[1].justificativas[0], /duplicada/i);
+  assert.match(resultado.despesas[1].justificativas[0], /Nota fiscal obrigat[oó]ria/i);
 });
