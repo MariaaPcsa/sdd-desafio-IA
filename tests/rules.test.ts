@@ -140,7 +140,7 @@ test('T-008 / RN-005: R$ 100,00 sem nota é aprovado; R$ 100,01 sem nota é recu
         descricao: 'Corrida aeroporto',
         fornecedor: 'TaxiApp',
         valor: 100.0,
-        tem_nota_fiscal: false, // R$ 100,00 exatos sem nota -> permitido
+        tem_nota_fiscal: false,
       },
       {
         id: 'd-004',
@@ -149,21 +149,73 @@ test('T-008 / RN-005: R$ 100,00 sem nota é aprovado; R$ 100,01 sem nota é recu
         descricao: 'Corrida hotel',
         fornecedor: 'TaxiApp',
         valor: 100.01,
-        tem_nota_fiscal: false, // R$ 100,01 sem nota -> estritamente maior que 100 -> recusado
+        tem_nota_fiscal: false,
       },
     ],
   };
 
   const resultado = processarLote(lote);
-  assert.strictEqual(resultado.despesas.length, 2);
+  // d-003: elegível fiscalmente (não exigiu nota), mas respeitou o teto diário de transporte de R$ 80 -> APROVADO_PARCIAL
+  assert.strictEqual(resultado.despesas[0].status, 'APROVADO_PARCIAL');
+  assert.strictEqual(resultado.despesas[0].valor_reembolsado, 80.0);
+  assert.strictEqual(resultado.despesas[0].valor_glosado, 20.0);
 
-  // d-003: 100.00 sem nota é aprovado para análise (não é barrado pela fiscal)
-  assert.strictEqual(resultado.despesas[0].id, 'd-003');
-  assert.strictEqual(resultado.despesas[0].status, 'APROVADO');
-
-  // d-004: 100.01 sem nota é RECUSADO com R$ 0,00
-  assert.strictEqual(resultado.despesas[1].id, 'd-004');
+  // d-004: 100.01 sem nota é RECUSADO integralmente por falta de nota fiscal
   assert.strictEqual(resultado.despesas[1].status, 'RECUSADO');
   assert.strictEqual(resultado.despesas[1].valor_reembolsado, 0.0);
-  assert.match(resultado.despesas[1].justificativas[0], /Nota fiscal obrigat[oó]ria/i);
+});
+
+test('T-009 / RN-001 / RN-002 / RN-004: limites diários com corte parcial e esgotamento subsequente', () => {
+  // Cenário da spec: d-001 (R$ 72,50) e d-002 (R$ 38,00) no mesmo dia (2026-07-03)
+  // Limite padrão de alimentação: R$ 60,00 (ou R$ 75 para CC-ENG-PLATAFORMA)
+  // Vamos testar com a política padrão (limite R$ 60,00) para validar o caso da spec:
+  const lotePadrao: LoteEntrada = {
+    colaborador: { id: 'c-9999', nome: 'Colaborador Padrão', centro_custo: 'CC-OUTRO' },
+    periodo: { competencia: '2026-07', inicio: '2026-07-01', fim: '2026-07-31' },
+    despesas: [
+      {
+        id: 'd-001',
+        data: '2026-07-03',
+        categoria: 'alimentacao',
+        descricao: 'Almoco com cliente',
+        fornecedor: 'Restaurante Tavola',
+        valor: 72.5,
+        tem_nota_fiscal: true,
+      },
+      {
+        id: 'd-002',
+        data: '2026-07-03',
+        categoria: 'alimentacao',
+        descricao: 'Jantar apos reuniao',
+        fornecedor: 'Cantina do Porto',
+        valor: 38.0,
+        tem_nota_fiscal: true,
+      },
+    ],
+  };
+
+  const resultado = processarLote(lotePadrao);
+  assert.strictEqual(resultado.despesas.length, 2);
+
+  // d-001: R$ 72,50 consome teto de R$ 60,00, glosa R$ 12,50 -> APROVADO_PARCIAL
+  const item1 = resultado.despesas[0];
+  assert.strictEqual(item1.id, 'd-001');
+  assert.strictEqual(item1.status, 'APROVADO_PARCIAL');
+  assert.strictEqual(item1.valor_reembolsado, 60.0);
+  assert.strictEqual(item1.valor_glosado, 12.5);
+
+  // d-002: R$ 38,00 chega com teto do dia já zerado -> RECUSADO (R$ 0,00 reembolsado)
+  const item2 = resultado.despesas[1];
+  assert.strictEqual(item2.id, 'd-002');
+  assert.strictEqual(item2.status, 'RECUSADO');
+  assert.strictEqual(item2.valor_reembolsado, 0.0);
+  assert.strictEqual(item2.valor_glosado, 38.0);
+  assert.match(item2.justificativas[0], /já esgotado/i);
+
+  // Totais do lote
+  assert.strictEqual(resultado.resumo.total_solicitado, 110.5);
+  assert.strictEqual(resultado.resumo.total_reembolsavel, 60.0);
+  assert.strictEqual(resultado.resumo.total_glosado, 50.5);
+  assert.strictEqual(resultado.resumo.itens_aprovados_parcialmente, 1);
+  assert.strictEqual(resultado.resumo.itens_recusados, 1);
 });

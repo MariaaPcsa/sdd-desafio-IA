@@ -52,10 +52,10 @@
   - **Aceite:** Testes `test('RN-005: R$ 100,00 sem nota é aprovado')` e `test('RN-005: R$ 100,01 sem nota é recusado com R$ 0,00')` passam.
   - **Commit:** `feat(T-008)`
 
-- [ ] **T-009** — Implementar agregador diário e limites para Alimentação e Transporte com corte de excedente
+- [x] **T-009** — Implementar agregador diário e limites para Alimentação e Transporte com corte de excedente
   - **Atende:** RN-001, RN-002, RN-004, AMB-001
   - **Aceite:** Testes de teto diário de alimentação e transporte com glosa parcial e zeramento de despesa subsequente passam.
-  - **Commit:**
+  - **Commit:** `feat(T-009)`
 
 - [ ] **T-010** — Implementar extração de multiplicador de diárias e limites de Hospedagem
   - **Atende:** RN-003, AMB-006, DT-003

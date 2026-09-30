@@ -45,6 +45,7 @@ export function processarLote(
   let itensRecusados = 0;
 
   const despesasProcessadasSet = new Set<string>();
+  const consumoDiarioMap = new Map<string, number>();
 
   for (const item of despesas) {
     const justificativas: string[] = [];
@@ -87,7 +88,7 @@ export function processarLote(
     }
 
     // Se houve violações impeditivas até aqui (competência, categoria, duplicata ou nota fiscal)
-    if (justificativas.length > 0) {
+    if (justificativas.length > 0 || !regraCategoria) {
       itensRecusados++;
       totalGlosadoCentavos += valorSolicitadoCentavos;
       resultados.push({
@@ -103,13 +104,84 @@ export function processarLote(
       continue;
     }
 
-    // Por enquanto (antes das próximas tasks), despesas válidas são aceitas temporariamente
+    const emViagem = colaborador.em_viagem === true;
+
+    // RN-001, RN-002, RN-004: Limites de periodicidade diária (alimentação, transporte, representação)
+    if (regraCategoria.periodicidade === 'dia') {
+      const keyDiaria = `${item.data}|${categoriaNorm}`;
+      const tetoDiarioCentavos = calcularLimiteEfetivoCentavos(regraCategoria, emViagem, politica);
+      const consumidoAteAgora = consumoDiarioMap.get(keyDiaria) ?? 0;
+      const saldoDisponivelCentavos = Math.max(0, tetoDiarioCentavos - consumidoAteAgora);
+
+      if (saldoDisponivelCentavos === 0) {
+        itensRecusados++;
+        totalGlosadoCentavos += valorSolicitadoCentavos;
+        justificativas.push(
+          `Limite diário da categoria '${categoriaNorm}' já esgotado para a data ${item.data} (teto: R$ ${fromCents(tetoDiarioCentavos).toFixed(2)}).`
+        );
+        resultados.push({
+          id: item.id,
+          data: item.data,
+          categoria: categoriaNorm,
+          valor_solicitado: fromCents(valorSolicitadoCentavos),
+          valor_reembolsado: 0.0,
+          valor_glosado: fromCents(valorSolicitadoCentavos),
+          status: 'RECUSADO',
+          justificativas,
+        });
+        continue;
+      }
+
+      if (valorSolicitadoCentavos <= saldoDisponivelCentavos) {
+        itensAprovados++;
+        totalReembolsavelCentavos += valorSolicitadoCentavos;
+        consumoDiarioMap.set(keyDiaria, consumidoAteAgora + valorSolicitadoCentavos);
+        justificativas.push('Despesa aprovada dentro do limite diário.');
+        resultados.push({
+          id: item.id,
+          data: item.data,
+          categoria: categoriaNorm,
+          valor_solicitado: fromCents(valorSolicitadoCentavos),
+          valor_reembolsado: fromCents(valorSolicitadoCentavos),
+          valor_glosado: 0.0,
+          status: 'APROVADO',
+          justificativas,
+        });
+        continue;
+      } else {
+        // Ultrapassa o teto diário: reembolso parcial
+        itensAprovadosParcialmente++;
+        const valorReembolsadoCentavos = saldoDisponivelCentavos;
+        const valorGlosadoCentavos = valorSolicitadoCentavos - saldoDisponivelCentavos;
+
+        totalReembolsavelCentavos += valorReembolsadoCentavos;
+        totalGlosadoCentavos += valorGlosadoCentavos;
+        consumoDiarioMap.set(keyDiaria, tetoDiarioCentavos);
+
+        justificativas.push(
+          `Limite diário da categoria '${categoriaNorm}' atingido (teto: R$ ${fromCents(tetoDiarioCentavos).toFixed(2)}). Valor excedente de R$ ${fromCents(valorGlosadoCentavos).toFixed(2)} glosado.`
+        );
+        resultados.push({
+          id: item.id,
+          data: item.data,
+          categoria: categoriaNorm,
+          valor_solicitado: fromCents(valorSolicitadoCentavos),
+          valor_reembolsado: fromCents(valorReembolsadoCentavos),
+          valor_glosado: fromCents(valorGlosadoCentavos),
+          status: 'APROVADO_PARCIAL',
+          justificativas,
+        });
+        continue;
+      }
+    }
+
+    // Caso não seja diária (ex: hospedagem), segue para aprovação inicial
     itensAprovados++;
     totalReembolsavelCentavos += valorSolicitadoCentavos;
     resultados.push({
       id: item.id,
       data: item.data,
-      categoria: item.categoria.trim().toLowerCase(),
+      categoria: categoriaNorm,
       valor_solicitado: fromCents(valorSolicitadoCentavos),
       valor_reembolsado: fromCents(valorSolicitadoCentavos),
       valor_glosado: 0.0,
