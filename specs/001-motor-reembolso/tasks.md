@@ -99,10 +99,10 @@
   - **Aceite:** Testes de resolução de limites para `CC-COMERCIAL`, `CC-ENG-PLATAFORMA` (hospedagem 0) e centro desconhecido com fallback padrão passam.
   - **Commit:** `feat(T-015)`
 
-- [ ] **T-016** — Implementar módulo de conversão cambial por data com PTAX do dia útil anterior (`RN-013`)
+- [x] **T-016** — Implementar módulo de conversão cambial por data com PTAX do dia útil anterior (`RN-013`)
   - **Atende:** RN-013, AMB-E01, AMB-E02, DT-001
   - **Aceite:** Testes de conversão em dia útil, conversão em sábado usando sexta-feira e recusa integral de moeda não cotada (GBP) passam.
-  - **Commit:**
+  - **Commit:** `feat(T-016)`
 
 - [ ] **T-017** — Integrar validação fiscal em BRL para despesas internacionais (`RN-005` + `RN-013`)
   - **Atende:** RN-005, RN-013, AMB-E04
