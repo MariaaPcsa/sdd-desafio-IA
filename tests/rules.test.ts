@@ -230,7 +230,6 @@ test('T-010 / RN-003: hospedagem calcula teto multiplicando diárias da descriç
 });
 
 test('T-011 / RN-010: estorno negativo subtrai do total e restabelece limite diário', () => {
-  // Lote com corrida de 50.00 e estorno de -45.00 na mesma data
   const lote: LoteEntrada = {
     colaborador: { id: 'c-0417', nome: 'Marina Volpi', centro_custo: 'CC-ENG-PLATAFORMA' },
     periodo: { competencia: '2026-07', inicio: '2026-07-01', fim: '2026-07-31' },
@@ -254,9 +253,67 @@ test('T-011 / RN-010: estorno negativo subtrai do total e restabelece limite di�
   assert.strictEqual(item.status, 'APROVADO');
   assert.strictEqual(item.valor_solicitado, -45.0);
   assert.strictEqual(item.valor_reembolsado, -45.0);
-  assert.strictEqual(item.valor_glosado, 0.0);
-
-  // No resumo, abate do total
   assert.strictEqual(resultado.resumo.total_solicitado, -45.0);
   assert.strictEqual(resultado.resumo.total_reembolsavel, -45.0);
+});
+
+test('T-012 / RN-006 / RN-012: ampliação de 50% em viagem, múltiplas justificativas e integridade do resumo', () => {
+  // Cenário 1: Colaborador com em_viagem: true
+  // Limite padrão de alimentação é 60. Com viagem (+50%), passa para R$ 90,00!
+  // Despesa de R$ 85,00 é aprovada integralmente (se em_viagem fosse false, glosaria R$ 25,00).
+  const loteViagem: LoteEntrada = {
+    colaborador: {
+      id: 'c-viagem',
+      nome: 'Viajante Corporativo',
+      centro_custo: 'CC-OUTRO',
+      em_viagem: true,
+    },
+    periodo: { competencia: '2026-07', inicio: '2026-07-01', fim: '2026-07-31' },
+    despesas: [
+      {
+        id: 'v-001',
+        data: '2026-07-10',
+        categoria: 'alimentacao',
+        descricao: 'Almoco executivo em viagem',
+        fornecedor: 'Restaurante Aeroporto',
+        valor: 85.0,
+        tem_nota_fiscal: true,
+      },
+      {
+        id: 'v-002',
+        data: '2026-05-10', // Fora da competência E > 100 sem nota fiscal (múltiplas violações)
+        categoria: 'alimentacao',
+        descricao: 'Despesa antiga sem nota',
+        fornecedor: 'Lanchonete X',
+        valor: 150.0,
+        tem_nota_fiscal: false,
+      },
+    ],
+  };
+
+  const resultado = processarLote(loteViagem);
+  assert.strictEqual(resultado.despesas.length, 2);
+
+  // v-001: teto diário de 90.00 comportou 85.00 integralmente
+  assert.strictEqual(resultado.despesas[0].id, 'v-001');
+  assert.strictEqual(resultado.despesas[0].status, 'APROVADO');
+  assert.strictEqual(resultado.despesas[0].valor_reembolsado, 85.0);
+  assert.strictEqual(resultado.despesas[0].valor_glosado, 0.0);
+
+  // v-002: deve conter AMBAS as justificativas (RN-012)
+  const itemMultiplo = resultado.despesas[1];
+  assert.strictEqual(itemMultiplo.status, 'RECUSADO');
+  assert.strictEqual(itemMultiplo.valor_reembolsado, 0.0);
+  assert.strictEqual(itemMultiplo.justificativas.length, 2);
+  assert.match(itemMultiplo.justificativas[0], /fora do período de competência/i);
+  assert.match(itemMultiplo.justificativas[1], /Nota fiscal obrigat[oó]ria/i);
+
+  // Integridade matemática do resumo: solicitado = reembolsável + glosado
+  assert.strictEqual(resultado.resumo.total_solicitado, 235.0);
+  assert.strictEqual(resultado.resumo.total_reembolsavel, 85.0);
+  assert.strictEqual(resultado.resumo.total_glosado, 150.0);
+  assert.strictEqual(
+    resultado.resumo.total_solicitado,
+    resultado.resumo.total_reembolsavel + resultado.resumo.total_glosado
+  );
 });

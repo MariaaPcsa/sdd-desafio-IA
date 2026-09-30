@@ -67,10 +67,10 @@
   - **Aceite:** Teste `test('RN-010: estorno negativo subtrai do total e restabelece limite diário')` passa.
   - **Commit:** `feat(T-011)`
 
-- [ ] **T-012** — Implementar ampliação de limites para colaborador em viagem e consolidação de resumo
+- [x] **T-012** — Implementar ampliação de limites para colaborador em viagem e consolidação de resumo
   - **Atende:** RN-006, RN-012, AMB-004, AMB-011
   - **Aceite:** Teste de ampliação de 50% para viagem e validação matemática de totais do resumo passam.
-  - **Commit:**
+  - **Commit:** `feat(T-012)`
 
 ---
 
