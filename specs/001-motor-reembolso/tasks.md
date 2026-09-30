@@ -13,10 +13,10 @@
   - **Aceite:** `npm run typecheck` e `npm test` executam sem erros.
   - **Commit:** `feat(T-001)`
 
-- [ ] **T-002** — Definir contratos de dados e interfaces TypeScript de entrada, saída, política e câmbio
+- [x] **T-002** — Definir contratos de dados e interfaces TypeScript de entrada, saída, política e câmbio
   - **Atende:** spec.md Seção 4, plan.md Seção 3
   - **Aceite:** Arquivo `src/types.ts` criado e compilando sem erros.
-  - **Commit:**
+  - **Commit:** `feat(T-002)`
 
 - [ ] **T-003** — Implementar módulo de precisão monetária e truncamento em centavos inteiros
   - **Atende:** RN-011, AMB-009, DT-001
