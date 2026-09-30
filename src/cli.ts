@@ -51,19 +51,22 @@ Opções:
       return 1;
     }
 
-    if (!values.input) {
+    const inputFile = values.input ?? positionals[1];
+    const outputFile = values.output ?? positionals[2];
+
+    if (!inputFile) {
       console.error("Erro: Parâmetro obrigatório '--input' não informado.");
       return 1;
     }
 
-    if (!values.output) {
+    if (!outputFile) {
       console.error("Erro: Parâmetro obrigatório '--output' não informado.");
       return 1;
     }
 
-    const inputPath = resolve(process.cwd(), values.input);
+    const inputPath = resolve(process.cwd(), inputFile);
     if (!existsSync(inputPath)) {
-      console.error(`Erro: Arquivo de entrada não encontrado: '${values.input}'.`);
+      console.error(`Erro: Arquivo de entrada não encontrado: '${inputFile}'.`);
       return 1;
     }
 
@@ -72,7 +75,7 @@ Opções:
     try {
       lote = JSON.parse(inputContent) as LoteEntrada;
     } catch (err) {
-      console.error(`Erro: Arquivo de entrada '${values.input}' não contém um JSON válido.`);
+      console.error(`Erro: Arquivo de entrada '${inputFile}' não contém um JSON válido.`);
       return 1;
     }
 
@@ -108,7 +111,7 @@ Opções:
     const resultado = processarLote(lote, politica, tabelaCambio);
 
     // Gravação da saída
-    const outputPath = resolve(process.cwd(), values.output);
+    const outputPath = resolve(process.cwd(), outputFile);
     await writeFile(outputPath, JSON.stringify(resultado, null, 2), 'utf-8');
 
     console.log(`Sucesso: Processamento concluído com êxito!`);
@@ -117,7 +120,7 @@ Opções:
     console.log(`Total solicitado: R$ ${resultado.resumo.total_solicitado.toFixed(2)}`);
     console.log(`Total reembolsável: R$ ${resultado.resumo.total_reembolsavel.toFixed(2)}`);
     console.log(`Total glosado: R$ ${resultado.resumo.total_glosado.toFixed(2)}`);
-    console.log(`Arquivo salvo em: '${values.output}'`);
+    console.log(`Arquivo salvo em: '${outputFile}'`);
 
     return 0;
   } catch (err: unknown) {
