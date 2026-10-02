@@ -10,11 +10,15 @@ Motor de linha de comando (CLI) determinístico e auditável para cálculo e val
 - **Node.js**: versão `>= 22.0.0` (suporte a ESM nativo e test runner integrado).
 - **npm**: versão `>= 10.0.0`.
 
-### 1. Instalação das Dependências
+### 1. Diretório do Projeto e Instalação
 
-Na raiz do repositório, instale as dependências de desenvolvimento:
+Abra o terminal e certifique-se de estar dentro da pasta do projeto:
 
-```bash
+```powershell
+# Se estiver na pasta anterior, navegue para o projeto:
+cd sdd-desafio-IA
+
+# Instale as dependências:
 npm install
 ```
 
@@ -22,44 +26,36 @@ npm install
 
 O projeto utiliza o executor de testes nativo do Node.js (`node:test`), executando 37 testes automatizados cobrindo regras de negócio, casos de borda e cenários ponta a ponta:
 
-```bash
-# Executa a suíte completa de testes (37 testes)
+```powershell
+# Executa a suíte completa de testes (37 testes aprovados)
 npm test
 
-# Executa verificação estática de tipos TypeScript
+# Executa verificação estática de tipos TypeScript (0 erros)
 npm run typecheck
 ```
 
 ### 3. Execução da CLI (`reembolso calcular`)
 
-Você pode executar o motor através do script npm ou diretamente via `tsx`:
+Os comandos abaixo são formatados em linha única, prontos para copiar e colar diretamente no **PowerShell**, **Prompt de Comando (CMD)** ou **Bash**:
 
 #### Processamento do Lote de Referência (v3):
-```bash
-npm start -- calcular --input exemplos/despesas-exemplo.json --output resultado.json
+```powershell
+npx tsx src/cli.ts calcular --input exemplos/despesas-exemplo.json --output resultado.json
 ```
 
 #### Processamento do Cenário do Envelope Lacrado (Política v4 e Câmbio):
-```bash
-npm start -- calcular \
-  --input exemplos/envelope/despesas-envelope.json \
-  --output resultado-envelope.json \
-  --politica exemplos/envelope/politica-v4.json \
-  --cambio exemplos/envelope/cambio.json
+```powershell
+npx tsx src/cli.ts calcular --input exemplos/envelope/despesas-envelope.json --output resultado-envelope.json --politica exemplos/envelope/politica-v4.json --cambio exemplos/envelope/cambio.json
 ```
 
 #### Processamento de Centro de Custo Desconhecido (Fallback Padrão):
-```bash
-npm start -- calcular \
-  --input exemplos/envelope/despesas-envelope-cc-desconhecido.json \
-  --output resultado-desconhecido.json \
-  --politica exemplos/envelope/politica-v4.json \
-  --cambio exemplos/envelope/cambio.json
+```powershell
+npx tsx src/cli.ts calcular --input exemplos/envelope/despesas-envelope-cc-desconhecido.json --output resultado-desconhecido.json --politica exemplos/envelope/politica-v4.json --cambio exemplos/envelope/cambio.json
 ```
 
 #### Exibição de Ajuda da CLI:
-```bash
-npm start -- --help
+```powershell
+npx tsx src/cli.ts --help
 ```
 
 ---
@@ -118,3 +114,9 @@ npm start -- --help
         ├── despesas-envelope.json
         └── despesas-envelope-cc-desconhecido.json
 ```
+Como Acionar a Skill
+Sempre que desejar realizar uma auditoria ou revisão profunda, você pode simplesmente solicitar no chat:
+
+"Ative a skill revisor e faça um code review completo das últimas tasks implementadas."
+"Revisor: audite o projeto contra a rubrica e aponte riscos de penalidade ou regressão."
+"Revise a aderência entre a spec.md e os testes em edge_cases.test.ts."
