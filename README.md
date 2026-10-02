@@ -120,6 +120,53 @@ npx tsx src/cli.ts --help
 
 ---
 
+## 🔄 Protocolo Obrigatório para Mudanças (Regras de Negócio e Estrutura)
+
+> **⚠️ REGRA DE OURO DO PROJETO:**  
+> Sempre que houver qualquer alteração na **estrutura do projeto (pastas/arquivos)** ou nas **regras de negócio/política**, é **OBRIGATÓRIO** atualizar todos os arquivos de documentação com as novas informações **antes ou simultaneamente à entrega do código**. É estritamente proibido alterar o código sem atualizar a especificação e os artefatos de rastreabilidade.
+
+### 📋 Checklist de Arquivos a Atualizar Obrigatoriamente:
+
+1. **`specs/001-motor-reembolso/spec.md`:**
+   - Registrar/atualizar as regras de negócio (`RN-xxx`), ambiguidades identificadas (`AMB-xxx`) e critérios de aceite verificáveis.
+2. **`specs/001-motor-reembolso/DECISIONS.md`:**
+   - Registrar formalmente a decisão arquitetural ou de negócio (`D-xxx`), com contexto, alternativas consideradas e impacto contábil.
+3. **`specs/001-motor-reembolso/plan.md`:**
+   - Atualizar a arquitetura técnica, interfaces TypeScript e contratos de dados afetados.
+4. **`specs/001-motor-reembolso/tasks.md`:**
+   - Decompor o trabalho em tarefas atômicas (`T-xxx`), com critérios de aceite individuais e mapeamento 1-para-1 com commits Git.
+5. **`README.md`:**
+   - Atualizar a árvore de diretórios, novas flags da CLI e instruções de execução.
+6. **`docs/RELATORIO.md` e `docs/RESUMO.md`:**
+   - Atualizar a matriz de evidências dos 4 Ds, totalizador de commits, quantidade de testes e relato de novos desafios.
+7. **`docs/sessions/`:**
+   - Registrar a nova sessão de trabalho (`0X-nome-da-sessao.md`) com as transcrições das decisões e intervenções humanas.
+
+---
+
+### ⚡ Comandos Obrigatórios de Validação e Homologação:
+
+Antes de realizar commits ou finalizar qualquer alteração de regras ou estrutura, execute **obrigatoriamente** o seguinte ciclo no terminal:
+
+```powershell
+# 1. Checagem estática rigorosa de tipos TypeScript (deve retornar 0 erros)
+npm run typecheck
+
+# 2. Execução da suíte completa de testes automatizados (100% de aprovação obrigatória)
+npm test
+
+# 3. Teste de ponta a ponta da CLI com os lotes de exemplo e envelope
+npx tsx src/cli.ts calcular --input exemplos/despesas-exemplo.json --output resultado.json
+npx tsx src/cli.ts calcular --input exemplos/envelope/despesas-envelope.json --output resultado-envelope.json --politica exemplos/envelope/politica-v4.json --cambio exemplos/envelope/cambio.json
+
+# 4. Verificação de status limpo e commits atômicos rastreáveis por task
+git status
+git add <arquivos-especificos>
+git commit -m "feat(T-xxx): <descricao da mudanca alinhada a spec>"
+```
+
+---
+
 ## 🔍 Auditoria Independente (Skill `revisor`)
 
 O repositório inclui a skill especializada [.agents/skills/revisor/SKILL.md](file:///c:/Users/maria/Desktop/desafio-/sdd-desafio-IA/sdd-desafio-IA/.agents/skills/revisor/SKILL.md) que audita a conformidade de todo o projeto frente à rubrica e especificação. Para acioná-la no chat:

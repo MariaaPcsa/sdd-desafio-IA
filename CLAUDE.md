@@ -26,6 +26,7 @@ Quando o código e a spec discordarem, a spec está certa e o código é o bug �
 - Commits de documentação e planejamento utilizam:
   - `docs(spec):`, `docs(plan):`, `docs(tasks):`, `docs(sessions):`
 - Nenhuma regra de negócio é entregue sem teste automatizado.
+- **Atualização Obrigatória da Documentação:** Sempre que houver qualquer mudança na estrutura do projeto (pastas/arquivos) ou regras de negócio/política, é mandatório atualizar todos os documentos do projeto (`spec.md`, `DECISIONS.md`, `plan.md`, `tasks.md`, `README.md`, `docs/RELATORIO.md`, `docs/RESUMO.md` e `docs/sessions/`) com as novas informações antes ou simultaneamente à entrega do código.
 
 ## Stack e comandos
 
