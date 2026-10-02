@@ -1,6 +1,21 @@
-# Motor de Cálculo de Reembolso Corporativo (SDD)
+# Motor de Reembolso Corporativo — SDD + AI Engineering
 
-Motor de linha de comando (CLI) determinístico e auditável para cálculo e validação de lotes de reembolso de despesas corporativas, desenvolvido em **Node.js 22 LTS + TypeScript**, seguindo a metodologia **Spec-Driven Development (SDD)**.
+Motor determinístico e auditável para cálculo e validação de despesas corporativas, desenvolvido com metodologia **Spec-Driven Development (SDD)** e **AI-assisted Software Engineering** em **Node.js 22 LTS + TypeScript**.
+
+---
+
+## 🎯 O que este projeto demonstra
+
+- **Spec-Driven Development (SDD):** Especificação formal rigorosa com contratos JSON Schema, regras inequívocas (`RN-001` a `RN-015`) e critérios de aceite verificáveis como única fonte da verdade antes de qualquer linha de código.
+- **AI-Assisted Development:** Engenharia de software assistida por inteligência artificial sob governança estrita e convenções declarativas ([CLAUDE.md](file:///c:/Users/maria/Desktop/desafio-/sdd-desafio-IA/sdd-desafio-IA/CLAUDE.md)).
+- **Human-in-the-Loop:** Supervisão humana crítica atuando na deliberação de ambiguidades contábeis/fiscais e interceptação de erros sutis de lógica (documentado em [docs/RELATORIO.md](file:///c:/Users/maria/Desktop/desafio-/sdd-desafio-IA/sdd-desafio-IA/docs/RELATORIO.md)).
+- **Rastreabilidade Requisito → Código → Teste:** Rastreabilidade bidirecional 100% íntegra mapeando cada regra da `spec.md` para tarefas atômicas em `tasks.md`, commits individuais no Git (`feat(T-xxx):`) e suítes de testes automatizados.
+- **Testes Automatizados e Determinismo:** 37 testes automatizados cobrindo caminho feliz, cenários E2E da CLI e 11 casos de borda estritos (aritmética em centavos inteiros sem distorções IEEE 754).
+- **Engenharia de Prompts e Contexto:** Instruções estruturadas para delimitação de escopo, regras de commits atômicos e proibição de refatorações especulativas.
+- **Skills Especializadas:** Arquitetura extensível com skill autônoma de governança técnica em [.agents/skills/revisor/](file:///c:/Users/maria/Desktop/desafio-/sdd-desafio-IA/sdd-desafio-IA/.agents/skills/revisor/).
+- **Code Review por Agente (Skill Revisor):** Auditoria técnica sênior independente com ceticismo construtivo, detecção de falhas de robustez e emissão formal de parecer técnico ([docs/PARECER_TECNICO.md](file:///c:/Users/maria/Desktop/desafio-/sdd-desafio-IA/sdd-desafio-IA/docs/PARECER_TECNICO.md)).
+- **Tratamento de Mudanças de Requisitos (Envelope Lacrado):** Absorção da Política v4 (centros de custo, conversão cambial PTAX e fila de aprovação manual) em ~90 min seguindo o ciclo SDD: spec formal ➔ deliberações em `DECISIONS.md` ➔ tasks ➔ implementação com zero regressões.
+- **Auditoria e Explicabilidade:** Cada despesa processada inclui justificativas auditáveis, notas de conversão cambial e decomposição exata de valores solicitados, reembolsados e glosados.
 
 ---
 
