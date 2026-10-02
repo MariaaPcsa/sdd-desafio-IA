@@ -37,7 +37,7 @@ Quando o código e a spec discordarem, a spec está certa e o código é o bug �
 
 ## Convenções de código
 
-- **Estrutura de pastas:** `src/` para código de domínio e CLI; `tests/` para testes automatizados; `specs/` para documentação viva de SDD.
+- **Estrutura de pastas:** `src/` para código de domínio e CLI; `tests/` para testes automatizados; `specs/` para documentação viva de SDD; `.agents/` para skills e agentes especializados de governança e auditoria.
 - **Valores monetários:** Representação interna estritamente em **números inteiros de centavos** (ex: `R$ 60,00` = `6000`). Truncamento estrito em 2 casas decimais na ingestão de dados.
 - **Tratamento de erros:** Mensagens amigáveis no `stderr` com códigos de saída semanticos (0 para sucesso, 1 para erro de validação/argumento).
 

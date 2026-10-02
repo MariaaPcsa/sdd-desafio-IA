@@ -75,6 +75,11 @@ npx tsx src/cli.ts --help
 
 ```
 .
+├── .agents/                                     # Agentes especializados e skills de governança
+│   └── skills/revisor/                          # Skill do Revisor Técnico Sênior independente
+│       ├── SKILL.md                             # Diretrizes de revisão, ceticismo e integridade contábil
+│       ├── references/                          # Checklist de auditoria e matriz da rubrica SDD
+│       └── resources/                           # Template oficial de parecer técnico
 ├── CLAUDE.md                                    # Convenções e instruções do agente de IA
 ├── README.md                                    # Instruções de execução e arquitetura do projeto
 ├── package.json                                 # Configuração do projeto e scripts npm
