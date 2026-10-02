@@ -101,11 +101,14 @@ npx tsx src/cli.ts --help
 │   └── DECISIONS.md                             # Log de decisões e resposta ao Envelope Lacrado
 ├── docs/                                        # Documentação e auditoria
 │   ├── RELATORIO.md                             # Relatório final organizado pelos 4 Ds e Envelope
+│   ├── RESUMO.md                                # Resumo executivo da entrega
+│   ├── PARECER_TECNICO.md                       # Parecer formal da auditoria sênior independente
 │   └── sessions/                                # Transcrições das sessões de trabalho com a IA
 │       ├── 01-especificacao-e-decisoes.md       # Sessão 01: Especificação inicial v1.0
 │       ├── 02-planejamento-e-tasks.md           # Sessão 02: Plano técnico e criação de tasks
 │       ├── 03-envelope-lacrado-e-spec-v2.md     # Sessão 03: Absorção da Política v4
-│       └── 04-implementacao-e-testes.md         # Sessão 04: Implementação TDD e testes
+│       ├── 04-implementacao-e-testes.md         # Sessão 04: Implementação TDD e testes
+│       └── 05-revisao-tecnica-e-auditoria-final.md # Sessão 05: Auditoria técnica e homologação CLI
 └── exemplos/                                    # Arquivos de entrada e referência
     ├── despesas-exemplo.json                    # Arquivo de despesas original v3
     └── envelope/                                # Arquivos fornecidos no Envelope Lacrado v4
@@ -114,9 +117,13 @@ npx tsx src/cli.ts --help
         ├── despesas-envelope.json
         └── despesas-envelope-cc-desconhecido.json
 ```
-Como Acionar a Skill
-Sempre que desejar realizar uma auditoria ou revisão profunda, você pode simplesmente solicitar no chat:
 
-"Ative a skill revisor e faça um code review completo das últimas tasks implementadas."
-"Revisor: audite o projeto contra a rubrica e aponte riscos de penalidade ou regressão."
-"Revise a aderência entre a spec.md e os testes em edge_cases.test.ts."
+---
+
+## 🔍 Auditoria Independente (Skill `revisor`)
+
+O repositório inclui a skill especializada [.agents/skills/revisor/SKILL.md](file:///c:/Users/maria/Desktop/desafio-/sdd-desafio-IA/sdd-desafio-IA/.agents/skills/revisor/SKILL.md) que audita a conformidade de todo o projeto frente à rubrica e especificação. Para acioná-la no chat:
+
+- *"Ative a skill revisor e faça um code review completo das últimas tasks implementadas."*
+- *"Revisor: audite o projeto contra a rubrica e aponte riscos de penalidade ou regressão."*
+- *"Revise a aderência entre a spec.md e os testes em edge_cases.test.ts."*

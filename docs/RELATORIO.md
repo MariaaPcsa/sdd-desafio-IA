@@ -32,7 +32,9 @@
 Poderia ter delegado ao agente a geração de massas sintéticas adicionais de dados de teste (fuzzing básico com dezenas de moedas e combinações de centro de custo) logo no Dia 1, o que teria antecipado o desenho do módulo cambial antes mesmo do envelope.
 
 **Usei subagentes / skills / MCP / hooks?**
-Sim. Foi configurado o arquivo [CLAUDE.md](file:///c:/Users/maria/Desktop/desafio-/sdd-desafio-IA/sdd-desafio-IA/CLAUDE.md) contendo convenções rígidas de projeto (proibição de arredondamento bancário, commits atômicos por task, regras de tipagem estática do TypeScript e formatação de links markdown com paths absolutos). Essas diretrizes mantiveram o agente alinhado durante todo o ciclo de vida.
+Sim. Foram empregados recursos avançados de orquestração:
+1. **Regras e Governança:** O arquivo [CLAUDE.md](file:///c:/Users/maria/Desktop/desafio-/sdd-desafio-IA/sdd-desafio-IA/CLAUDE.md) fixou convenções rígidas (proibição de ponto flutuante, commits atômicos rastreáveis por task, tipagem estática e referências relativas normalizadas).
+2. **Skill Especializada (`revisor`):** Foi criada e acionada a skill de auditoria independente [.agents/skills/revisor/SKILL.md](file:///c:/Users/maria/Desktop/desafio-/sdd-desafio-IA/sdd-desafio-IA/.agents/skills/revisor/SKILL.md), que atuou como Revisor Técnico Sênior, inspecionando código, rastreabilidade e integridade contábil. A auditoria gerou o documento formal [docs/PARECER_TECNICO.md](file:///c:/Users/maria/Desktop/desafio-/sdd-desafio-IA/sdd-desafio-IA/docs/PARECER_TECNICO.md) e o registro na [Sessão 05](file:///c:/Users/maria/Desktop/desafio-/sdd-desafio-IA/sdd-desafio-IA/docs/sessions/05-revisao-tecnica-e-auditoria-final.md).
 
 ---
 

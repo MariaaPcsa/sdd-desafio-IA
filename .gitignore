@@ -40,6 +40,8 @@ __pycache__/
 target/
 bin/
 obj/
+# Saidas de execucao da CLI
+resultado*.json
 
 # Claude Code — configuracao local de maquina.
 # ATENCAO: CLAUDE.md NAO entra aqui. Ele e artefato entregavel e deve ser commitado.
