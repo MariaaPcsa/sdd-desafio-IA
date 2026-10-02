@@ -10,6 +10,7 @@ import { parseArgs } from 'node:util';
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { LoteEntrada, PoliticaV4, TabelaCambio } from './types.js';
 import { POLITICA_PADRAO_V4 } from './policy.js';
 import { processarLote } from './engine.js';
@@ -82,9 +83,19 @@ Opções:
     // Carregar Política (externa ou padrão)
     let politica: PoliticaV4 = POLITICA_PADRAO_V4;
     const defaultPoliticaPath = resolve(process.cwd(), 'exemplos/envelope/politica-v4.json');
-    const caminhoPolitica = values.politica ? resolve(process.cwd(), values.politica) : (existsSync(defaultPoliticaPath) ? defaultPoliticaPath : undefined);
+    let caminhoPolitica: string | undefined;
 
-    if (caminhoPolitica && existsSync(caminhoPolitica)) {
+    if (values.politica) {
+      caminhoPolitica = resolve(process.cwd(), values.politica);
+      if (!existsSync(caminhoPolitica)) {
+        console.error(`Erro: Arquivo de política não encontrado: '${values.politica}'.`);
+        return 1;
+      }
+    } else if (existsSync(defaultPoliticaPath)) {
+      caminhoPolitica = defaultPoliticaPath;
+    }
+
+    if (caminhoPolitica) {
       try {
         const polContent = await readFile(caminhoPolitica, 'utf-8');
         politica = JSON.parse(polContent) as PoliticaV4;
@@ -96,9 +107,19 @@ Opções:
     // Carregar Câmbio (externo ou padrão)
     let tabelaCambio: TabelaCambio | undefined;
     const defaultCambioPath = resolve(process.cwd(), 'exemplos/envelope/cambio.json');
-    const caminhoCambio = values.cambio ? resolve(process.cwd(), values.cambio) : (existsSync(defaultCambioPath) ? defaultCambioPath : undefined);
+    let caminhoCambio: string | undefined;
 
-    if (caminhoCambio && existsSync(caminhoCambio)) {
+    if (values.cambio) {
+      caminhoCambio = resolve(process.cwd(), values.cambio);
+      if (!existsSync(caminhoCambio)) {
+        console.error(`Erro: Arquivo de câmbio não encontrado: '${values.cambio}'.`);
+        return 1;
+      }
+    } else if (existsSync(defaultCambioPath)) {
+      caminhoCambio = defaultCambioPath;
+    }
+
+    if (caminhoCambio) {
       try {
         const cambioContent = await readFile(caminhoCambio, 'utf-8');
         tabelaCambio = JSON.parse(cambioContent) as TabelaCambio;
@@ -128,8 +149,6 @@ Opções:
     return 1;
   }
 }
-
-import { fileURLToPath } from 'node:url';
 
 // Execução direta via CLI
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
